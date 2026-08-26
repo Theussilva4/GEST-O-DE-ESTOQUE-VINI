@@ -131,9 +131,12 @@ export default function App() {
         const newId = `prod-${Date.now()}`;
         const newProd: Product = {
           id: newId,
-          code: formData.code || `EST-${products.length + 1}`,
+          code: formData.code || `MAN-${products.length + 1}`,
           barcode: formData.barcode,
           name: formData.name,
+          equipmentTag: formData.equipmentTag,
+          criticality: formData.criticality || 'LOW',
+          imageUrl: formData.imageUrl,
           description: formData.description,
           category: formData.category,
           unit: formData.unit,
@@ -141,14 +144,13 @@ export default function App() {
           minStock: formData.minStock || 5,
           maxStock: formData.maxStock,
           costPrice: formData.costPrice || 0,
-          sellingPrice: formData.sellingPrice || 0,
           supplier: formData.supplier,
           location: formData.location,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
         setProducts((prev) => [newProd, ...prev]);
-        showToast('Produto cadastrado localmente (modo offline)', 'info');
+        showToast('Sobressalente cadastrado localmente (modo offline)', 'info');
       }
     }
   };

@@ -11,15 +11,17 @@ import {
   FileText,
   AlertTriangle,
   CheckCircle2,
-  TrendingUp,
-  Percent,
   Image as ImageIcon,
   UploadCloud,
   Trash2,
   Link,
-  Sparkles,
+  Cpu,
+  ShieldAlert,
+  Flame,
+  Tag,
+  Wrench,
 } from 'lucide-react';
-import { Product, ProductUnit } from '../types';
+import { Product, ProductUnit, MaintenanceCriticality } from '../types';
 import { BarcodeScannerModal } from './BarcodeScannerModal';
 
 interface ProductFormModalProps {
@@ -32,28 +34,32 @@ interface ProductFormModalProps {
 
 const COMMON_UNITS: { value: ProductUnit; label: string }[] = [
   { value: 'UN', label: 'Unidade (UN)' },
-  { value: 'KG', label: 'Quilograma (KG)' },
-  { value: 'L', label: 'Litro (L)' },
-  { value: 'CX', label: 'Caixa (CX)' },
-  { value: 'M', label: 'Metro (M)' },
   { value: 'PAR', label: 'Par (PAR)' },
+  { value: 'KIT', label: 'Kit / Conjunto (KIT)' },
+  { value: 'L', label: 'Litro (L)' },
+  { value: 'KG', label: 'Quilograma (KG)' },
+  { value: 'M', label: 'Metro (M)' },
+  { value: 'CX', label: 'Caixa (CX)' },
   { value: 'PCT', label: 'Pacote (PCT)' },
   { value: 'ROLO', label: 'Rolo (ROLO)' },
-  { value: 'KIT', label: 'Kit (KIT)' },
 ];
 
-const SUGGESTED_CATEGORIES = [
-  'Fixação e Ferragens',
-  'Ferramentas & Abrasivos',
-  'EPI & Segurança',
-  'Elétrica',
+const SUGGESTED_MAINTENANCE_CATEGORIES = [
+  'Rolamentos & Mancais',
+  'Pneumática',
   'Hidráulica',
+  'Elétrica & Painéis',
+  'Motores & Redutores',
   'Lubrificantes & Químicos',
-  'Pintura & Acabamento',
-  'Materiais de Construção',
-  'Eletrônicos & Acessórios',
-  'Embalagens',
-  'Outros',
+  'Correias & Polias',
+  'Vedações & Retentores',
+  'Fixação & Parafusos',
+  'Ferramentas & Desgaste',
+  'Sensores & Automação',
+  'EPI & Segurança Industrial',
+  'Bombas & Válvulas',
+  'Filtros & Elementos Filtrantes',
+  'Outros Sobressalentes',
 ];
 
 // Helper to compress images client-side into lightweight base64
@@ -116,14 +122,16 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     imageUrl: '',
     category: '',
     unit: 'UN' as ProductUnit,
+    equipmentTag: '',
+    criticality: 'LOW' as MaintenanceCriticality,
     initialStock: '0',
-    minStock: '5',
+    minStock: '2',
     maxStock: '',
     costPrice: '',
     sellingPrice: '',
     supplier: '',
     location: '',
-    responsible: 'Almoxarife',
+    responsible: 'Almoxarife / PCM',
   });
 
   const [isScannerOpen, setIsScannerOpen] = useState(false);
@@ -146,14 +154,16 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         imageUrl: productToEdit.imageUrl || '',
         category: productToEdit.category,
         unit: productToEdit.unit,
+        equipmentTag: productToEdit.equipmentTag || '',
+        criticality: productToEdit.criticality || 'LOW',
         initialStock: String(productToEdit.currentStock),
         minStock: String(productToEdit.minStock),
         maxStock: productToEdit.maxStock ? String(productToEdit.maxStock) : '',
         costPrice: String(productToEdit.costPrice || ''),
-        sellingPrice: String(productToEdit.sellingPrice || ''),
+        sellingPrice: String(productToEdit.sellingPrice || productToEdit.costPrice || ''),
         supplier: productToEdit.supplier || '',
         location: productToEdit.location || '',
-        responsible: 'Almoxarife',
+        responsible: 'Almoxarife / PCM',
       });
       setShowUrlInput(Boolean(productToEdit.imageUrl && productToEdit.imageUrl.startsWith('http')));
     } else {
@@ -165,28 +175,24 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         imageUrl: '',
         category: '',
         unit: 'UN',
+        equipmentTag: '',
+        criticality: 'LOW',
         initialStock: '0',
-        minStock: '5',
+        minStock: '2',
         maxStock: '',
         costPrice: '',
         sellingPrice: '',
         supplier: '',
         location: '',
-        responsible: 'Almoxarife',
+        responsible: 'Almoxarife / PCM',
       });
       setShowUrlInput(false);
     }
     setErrorMsg(null);
   }, [productToEdit, isOpen]);
 
-  // Calculations for Margin
-  const cost = parseFloat(formData.costPrice) || 0;
-  const sell = parseFloat(formData.sellingPrice) || 0;
-  const profitMargin = sell > 0 ? ((sell - cost) / sell) * 100 : 0;
-  const profitValue = sell - cost;
-
   const allCategories = Array.from(
-    new Set([...SUGGESTED_CATEGORIES, ...existingCategories])
+    new Set([...SUGGESTED_MAINTENANCE_CATEGORIES, ...existingCategories])
   ).filter(Boolean);
 
   const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -219,29 +225,32 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) {
-      setErrorMsg('O nome do produto é obrigatório.');
+      setErrorMsg('A descrição / nome do sobressalente é obrigatório.');
       return;
     }
     if (!formData.category.trim()) {
-      setErrorMsg('A categoria do produto é obrigatória.');
+      setErrorMsg('A categoria de manutenção é obrigatória.');
       return;
     }
 
     try {
       setIsSubmitting(true);
       setErrorMsg(null);
+      const unitCost = parseFloat(formData.costPrice) || 0;
       await onSave({
         ...formData,
         imageUrl: formData.imageUrl.trim() || undefined,
+        equipmentTag: formData.equipmentTag.trim() || undefined,
+        criticality: formData.criticality,
         initialStock: parseFloat(formData.initialStock) || 0,
         minStock: parseFloat(formData.minStock) || 0,
         maxStock: formData.maxStock ? parseFloat(formData.maxStock) : undefined,
-        costPrice: parseFloat(formData.costPrice) || 0,
-        sellingPrice: parseFloat(formData.sellingPrice) || 0,
+        costPrice: unitCost,
+        sellingPrice: formData.sellingPrice ? parseFloat(formData.sellingPrice) : unitCost,
       });
       onClose();
     } catch (err: any) {
-      setErrorMsg(err?.message || 'Erro ao salvar o produto.');
+      setErrorMsg(err?.message || 'Erro ao salvar o item de manutenção.');
     } finally {
       setIsSubmitting(false);
     }
@@ -266,13 +275,16 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 <PackagePlus className="w-5 h-5" />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                  {isEditing ? 'Editar Dados do Produto' : 'Cadastrar Novo Produto'}
+                <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <span>{isEditing ? 'Editar Peça / Sobressalente' : 'Cadastrar Item de Manutenção'}</span>
+                  <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[10px] font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wide">
+                    Almoxarifado MRO
+                  </span>
                 </h2>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
                   {isEditing
-                    ? 'Atualize foto, código de barras e informações cadastrais'
-                    : 'Preencha os dados e anexe a foto para registrar o item'}
+                    ? 'Atualize foto, código de barras, TAGs de máquina e dados do estoque'
+                    : 'Cadastre sobressalentes, ferramentas, EPIs ou peças de reposição'}
                 </p>
               </div>
             </div>
@@ -298,7 +310,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             {/* PRODUCT PHOTO ATTACHMENT SECTION */}
             <div>
               <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3 flex items-center gap-1.5">
-                <ImageIcon className="w-3.5 h-3.5" /> Foto do Produto / Imagem Anexa
+                <ImageIcon className="w-3.5 h-3.5 text-emerald-600" /> Foto da Peça / Imagem Anexa
               </h3>
 
               {/* Hidden file inputs for Camera and Gallery */}
@@ -325,7 +337,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                     <>
                       <img
                         src={formData.imageUrl}
-                        alt="Foto do produto"
+                        alt="Foto da peça"
                         referrerPolicy="no-referrer"
                         className="w-full h-full object-cover"
                       />
@@ -392,7 +404,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                     <div className="pt-1">
                       <input
                         type="url"
-                        placeholder="https://exemplo.com/imagem-produto.jpg"
+                        placeholder="https://exemplo.com/foto-peca.jpg"
                         value={formData.imageUrl}
                         onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
                         className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-emerald-500"
@@ -401,7 +413,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                   )}
 
                   <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
-                    Anexe a foto para identificar o item facilmente no inventário, nas conferências e nas movimentações.
+                    Anexe a foto da peça ou placa técnica para agilizar identificação no almoxarifado pelos mecânicos e eletricistas.
                   </p>
                 </div>
               </div>
@@ -410,18 +422,18 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             {/* Basic Info Section */}
             <div>
               <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3 flex items-center gap-1.5">
-                <FileText className="w-3.5 h-3.5" /> Identificação do Produto
+                <FileText className="w-3.5 h-3.5 text-emerald-600" /> Identificação do Sobressalente
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="sm:col-span-2">
                   <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                    Nome do Produto *
+                    Descrição do Sobressalente / Peça *
                   </label>
                   <input
                     id="product-name-input"
                     type="text"
                     required
-                    placeholder="Ex: Parafuso Sextavado Aço Inox 1/4 x 2"
+                    placeholder="Ex: Rolamento Autocompensador 22216 EK ou Válvula 5/2 24VCC"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 focus:bg-white dark:focus:bg-slate-800 transition-all"
@@ -435,7 +447,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                   <input
                     id="product-code-input"
                     type="text"
-                    placeholder="Ex: EST-001 (auto se vazio)"
+                    placeholder="Ex: MNT-001 (auto se vazio)"
                     value={formData.code}
                     onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                     className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 focus:bg-white dark:focus:bg-slate-800 transition-all"
@@ -444,7 +456,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
                 <div>
                   <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                    Código de Barras / EAN
+                    Código de Barras / EAN / QR Code
                   </label>
                   <div className="flex gap-2">
                     <div className="relative flex-1">
@@ -452,7 +464,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                       <input
                         id="product-barcode-input"
                         type="text"
-                        placeholder="Ex: 7891000100011"
+                        placeholder="Ex: 7891000100011 ou bip manual"
                         value={formData.barcode}
                         onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
                         className="w-full pl-9 pr-3 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 focus:bg-white dark:focus:bg-slate-800 transition-all"
@@ -462,7 +474,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                       id="open-barcode-scanner-btn"
                       type="button"
                       onClick={() => setIsScannerOpen(true)}
-                      title="Escanear Código de Barras com Câmera"
+                      title="Escanear Código de Barras com Câmera do Celular"
                       className="px-3.5 py-2.5 bg-slate-100 hover:bg-emerald-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl flex items-center justify-center border border-slate-200 dark:border-slate-700 transition-colors shadow-xs"
                     >
                       <Camera className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
@@ -472,19 +484,19 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
                 <div>
                   <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                    Categoria *
+                    Categoria de Manutenção *
                   </label>
                   <input
                     id="product-category-input"
                     type="text"
                     required
-                    list="category-suggestions"
+                    list="maintenance-category-suggestions"
                     placeholder="Selecione ou digite..."
                     value={formData.category}
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                     className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 focus:bg-white dark:focus:bg-slate-800 transition-all"
                   />
-                  <datalist id="category-suggestions">
+                  <datalist id="maintenance-category-suggestions">
                     {allCategories.map((cat) => (
                       <option key={cat} value={cat} />
                     ))}
@@ -513,16 +525,65 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
               </div>
             </div>
 
+            {/* Maintenance Specific: Equipment TAG & Criticality */}
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3 flex items-center gap-1.5">
+                <Wrench className="w-3.5 h-3.5 text-emerald-600" /> Aplicação em Máquinas & Criticidade
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    TAG(s) / Equipamento(s) de Destino
+                  </label>
+                  <div className="relative">
+                    <Tag className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      id="product-equipment-tag-input"
+                      type="text"
+                      placeholder="Ex: PRE-HY-02 / RED-04 / Linha 01"
+                      value={formData.equipmentTag}
+                      onChange={(e) => setFormData({ ...formData, equipmentTag: e.target.value })}
+                      className="w-full pl-9 pr-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 transition-all"
+                    />
+                  </div>
+                  <span className="text-[10px] text-slate-400 block mt-1">
+                    Ajuda o técnico a localizar o sobressalente por TAG de máquina.
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    Criticidade da Peça na Planta *
+                  </label>
+                  <select
+                    id="product-criticality-select"
+                    value={formData.criticality}
+                    onChange={(e) =>
+                      setFormData({ ...formData, criticality: e.target.value as MaintenanceCriticality })
+                    }
+                    className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500 transition-all font-medium"
+                  >
+                    <option value="HIGH">🔴 Alta (Crítica A - Causa Parada de Fábrica)</option>
+                    <option value="MEDIUM">🟡 Média (Importante B - Impacto Parcial)</option>
+                    <option value="LOW">⚪ Baixa (Geral C - Consumo / Sem Parada)</option>
+                  </select>
+                  <span className="text-[10px] text-slate-400 block mt-1">
+                    Peças críticas geram alertas prioritários de reposição no almoxarifado.
+                  </span>
+                </div>
+              </div>
+            </div>
+
             {/* Quantities and Stock Controls */}
             <div>
               <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3 flex items-center gap-1.5">
-                <Layers className="w-3.5 h-3.5" /> Controle de Estoque
+                <Layers className="w-3.5 h-3.5 text-emerald-600" /> Níveis de Estoque de Segurança
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {!isEditing && (
                   <div>
                     <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                      Estoque Inicial ({formData.unit})
+                      Estoque Físico Inicial ({formData.unit})
                     </label>
                     <input
                       id="product-initial-stock-input"
@@ -535,14 +596,14 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                       className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500 transition-all"
                     />
                     <span className="text-[10px] text-slate-400 block mt-0.5">
-                      Gera registro automático de entrada
+                      Gera registro inicial automático
                     </span>
                   </div>
                 )}
 
                 <div>
                   <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                    Estoque Mínimo (Alerta) *
+                    Ponto de Reposição / Mínimo *
                   </label>
                   <input
                     id="product-min-stock-input"
@@ -550,46 +611,46 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                     min="0"
                     step="any"
                     required
-                    placeholder="5"
+                    placeholder="2"
                     value={formData.minStock}
                     onChange={(e) => setFormData({ ...formData, minStock: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500 transition-all"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500 transition-all font-semibold"
                   />
                   <span className="text-[10px] text-slate-400 block mt-0.5">
-                    Avisa quando atingir este saldo
+                    Gera alerta quando atingir este saldo
                   </span>
                 </div>
 
                 <div>
                   <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                    Estoque Máximo (Opcional)
+                    Estoque Máximo / Teto
                   </label>
                   <input
                     id="product-max-stock-input"
                     type="number"
                     min="0"
                     step="any"
-                    placeholder="100"
+                    placeholder="10"
                     value={formData.maxStock}
                     onChange={(e) => setFormData({ ...formData, maxStock: e.target.value })}
                     className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500 transition-all"
                   />
                   <span className="text-[10px] text-slate-400 block mt-0.5">
-                    Evita excesso de compras
+                    Evita imobilizado desnecessário
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Financials & Prices */}
+            {/* Financial / Cost Valuation */}
             <div>
               <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3 flex items-center gap-1.5">
-                <DollarSign className="w-3.5 h-3.5" /> Valores & Margem de Lucro
+                <DollarSign className="w-3.5 h-3.5 text-emerald-600" /> Custo Unitário de Aquisição
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                    Preço de Custo Unitário (R$)
+                    Custo Médio Unitário (R$)
                   </label>
                   <div className="relative">
                     <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400">
@@ -606,94 +667,46 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                       className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500 transition-all"
                     />
                   </div>
+                  <span className="text-[10px] text-slate-400 block mt-1">
+                    Valor base para cálculo do patrimônio e custo das ordens de serviço.
+                  </span>
                 </div>
 
                 <div>
                   <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                    Preço de Venda / Saída (R$)
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400">
-                      R$
-                    </span>
-                    <input
-                      id="product-selling-price-input"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      placeholder="0,00"
-                      value={formData.sellingPrice}
-                      onChange={(e) => setFormData({ ...formData, sellingPrice: e.target.value })}
-                      className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500 transition-all"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Real-time Profit Preview */}
-              {sell > 0 && (
-                <div className="mt-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-3 text-xs">
-                  <div className="flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4 text-emerald-600" />
-                    <span className="text-slate-600 dark:text-slate-300">
-                      Lucro Bruto por Unidade:
-                    </span>
-                    <span
-                      className={`font-semibold ${
-                        profitValue >= 0 ? 'text-emerald-600' : 'text-red-600'
-                      }`}
-                    >
-                      R$ {profitValue.toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Percent className="w-4 h-4 text-blue-600" />
-                    <span className="text-slate-600 dark:text-slate-300">Margem Comercial:</span>
-                    <span
-                      className={`font-semibold ${
-                        profitMargin >= 0 ? 'text-blue-600' : 'text-red-600'
-                      }`}
-                    >
-                      {profitMargin.toFixed(1)}%
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Location & Supplier */}
-            <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3 flex items-center gap-1.5">
-                <Building2 className="w-3.5 h-3.5" /> Fornecedor & Armazenamento
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                    Fornecedor Principal
+                    Fabricante / Marca / Fornecedor
                   </label>
                   <div className="relative">
                     <Building2 className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       id="product-supplier-input"
                       type="text"
-                      placeholder="Ex: Distribuidora Nacional Ltda"
+                      placeholder="Ex: SKF, Festo, Siemens, Mobil, WEG"
                       value={formData.supplier}
                       onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
                       className="w-full pl-9 pr-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 transition-all"
                     />
                   </div>
                 </div>
+              </div>
+            </div>
 
-                <div>
+            {/* Location & Details */}
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3 flex items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5 text-emerald-600" /> Endereçamento no Almoxarifado
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
                   <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                    Localização no Almoxarifado / Loja
+                    Localização Física (Prateleira / Gaveteiro / Armário)
                   </label>
                   <div className="relative">
                     <MapPin className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       id="product-location-input"
                       type="text"
-                      placeholder="Ex: Corredor B - Prateleira 03"
+                      placeholder="Ex: Prateleira B-04 / Gaveteiro M-02 / Bacia de Contenção Q-01"
                       value={formData.location}
                       onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                       className="w-full pl-9 pr-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 transition-all"
@@ -703,12 +716,12 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
                 <div className="sm:col-span-2">
                   <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                    Descrição Detalhada / Aplicação
+                    Especificações Técnicas / Observações da Aplicação
                   </label>
                   <textarea
                     id="product-description-input"
                     rows={2}
-                    placeholder="Informações técnicas, dimensões, compatibilidade ou observações..."
+                    placeholder="Dimensões, voltagem, tolerâncias, especificações do fabricante ou instruções de montagem..."
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 transition-all resize-none"
@@ -739,7 +752,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                   ? 'Salvando...'
                   : isEditing
                   ? 'Salvar Alterações'
-                  : 'Cadastrar Produto'}
+                  : 'Cadastrar Sobressalente'}
               </button>
             </div>
           </form>

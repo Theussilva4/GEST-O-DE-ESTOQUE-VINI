@@ -10,23 +10,21 @@ import {
   Package,
   Layers,
   DollarSign,
-  TrendingUp,
   Download,
   Printer,
-  Filter,
   Barcode,
   Camera,
   MapPin,
-  Building2,
-  CheckCircle2,
   XCircle,
   LayoutGrid,
   List,
-  Sparkles,
   ClipboardList,
+  Wrench,
+  Tag,
+  ShieldAlert,
 } from 'lucide-react';
-import { Product, Movement } from '../types';
-import { formatCurrency, formatNumber, getStockStatus, exportToCSV } from '../lib/utils';
+import { Product, Movement, MaintenanceCriticality } from '../types';
+import { formatCurrency, formatNumber, getStockStatus, getCriticalityInfo, exportToCSV } from '../lib/utils';
 import { BarcodeScannerModal } from './BarcodeScannerModal';
 
 interface InventoryViewProps {
@@ -52,8 +50,9 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
+  const [selectedCriticality, setSelectedCriticality] = useState<'ALL' | MaintenanceCriticality>('ALL');
   const [selectedStatus, setSelectedStatus] = useState<'ALL' | 'low' | 'out' | 'normal'>('ALL');
-  const [sortBy, setSortBy] = useState<'name' | 'stock' | 'value' | 'code'>('name');
+  const [sortBy, setSortBy] = useState<'name' | 'stock' | 'value' | 'code' | 'criticality'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
   const [isScannerOpen, setIsScannerOpen] = useState(false);
@@ -70,18 +69,20 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
     return Array.from(set).sort();
   }, [products]);
 
-  // Overall KPIs
+  // Overall KPIs for Maintenance
   const stats = useMemo(() => {
     let totalItems = 0;
     let totalCost = 0;
-    let totalSelling = 0;
     let lowCount = 0;
     let outCount = 0;
+    let highCriticalityCount = 0;
 
     products.forEach((p) => {
       totalItems += p.currentStock;
       totalCost += p.currentStock * p.costPrice;
-      totalSelling += p.currentStock * p.sellingPrice;
+      if (p.criticality === 'HIGH') {
+        highCriticalityCount++;
+      }
       if (p.currentStock <= 0) {
         outCount++;
       } else if (p.currentStock <= p.minStock) {
@@ -89,16 +90,11 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
       }
     });
 
-    const profit = totalSelling - totalCost;
-    const margin = totalSelling > 0 ? (profit / totalSelling) * 100 : 0;
-
     return {
       totalProducts: products.length,
       totalItems,
       totalCost,
-      totalSelling,
-      profit,
-      margin,
+      highCriticalityCount,
       lowCount,
       outCount,
       alertCount: lowCount + outCount,
@@ -114,6 +110,11 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           return false;
         }
 
+        // Criticality filter
+        if (selectedCriticality !== 'ALL' && product.criticality !== selectedCriticality) {
+          return false;
+        }
+
         // Status filter
         const statusInfo = getStockStatus(product);
         if (selectedStatus === 'out' && statusInfo.status !== 'out') return false;
@@ -126,6 +127,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           const matchesName = product.name.toLowerCase().includes(term);
           const matchesCode = product.code.toLowerCase().includes(term);
           const matchesBarcode = product.barcode?.toLowerCase().includes(term);
+          const matchesTag = product.equipmentTag?.toLowerCase().includes(term);
           const matchesCategory = product.category.toLowerCase().includes(term);
           const matchesSupplier = product.supplier?.toLowerCase().includes(term);
           const matchesLocation = product.location?.toLowerCase().includes(term);
@@ -133,6 +135,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             matchesName ||
             matchesCode ||
             matchesBarcode ||
+            matchesTag ||
             matchesCategory ||
             matchesSupplier ||
             matchesLocation
@@ -151,32 +154,37 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           diff = a.currentStock * a.costPrice - b.currentStock * b.costPrice;
         } else if (sortBy === 'code') {
           diff = a.code.localeCompare(b.code);
+        } else if (sortBy === 'criticality') {
+          const critScore = { HIGH: 3, MEDIUM: 2, LOW: 1 };
+          diff = (critScore[b.criticality || 'LOW'] || 0) - (critScore[a.criticality || 'LOW'] || 0);
         }
         return sortOrder === 'asc' ? diff : -diff;
       });
-  }, [products, searchTerm, selectedCategory, selectedStatus, sortBy, sortOrder]);
+  }, [products, searchTerm, selectedCategory, selectedCriticality, selectedStatus, sortBy, sortOrder]);
 
   const handleExportCSV = () => {
     const rows = filteredProducts.map((p) => {
       const status = getStockStatus(p);
+      const crit = getCriticalityInfo(p.criticality);
       return {
         Código: p.code,
         'Código de Barras': p.barcode || '',
-        Produto: p.name,
+        'Peça / Sobressalente': p.name,
+        'TAG Equipamento': p.equipmentTag || '',
+        Criticidade: crit.label,
         Categoria: p.category,
         Unidade: p.unit,
         'Estoque Atual': p.currentStock,
-        'Estoque Mínimo': p.minStock,
+        'Ponto de Reposição (Mín)': p.minStock,
+        'Estoque Máximo': p.maxStock || '',
         Status: status.label,
-        'Preço de Custo (R$)': p.costPrice.toFixed(2),
-        'Preço de Venda (R$)': p.sellingPrice.toFixed(2),
-        'Valor Total Custo (R$)': (p.currentStock * p.costPrice).toFixed(2),
-        'Valor Total Venda (R$)': (p.currentStock * p.sellingPrice).toFixed(2),
-        Fornecedor: p.supplier || '',
-        Localização: p.location || '',
+        'Custo Unitário (R$)': p.costPrice.toFixed(2),
+        'Valor Total em Estoque (R$)': (p.currentStock * p.costPrice).toFixed(2),
+        'Fabricante / Fornecedor': p.supplier || '',
+        'Localização Almoxarifado': p.location || '',
       };
     });
-    exportToCSV(`Inventario_Geral_${new Date().toISOString().slice(0, 10)}`, rows);
+    exportToCSV(`Almoxarifado_Manutencao_${new Date().toISOString().slice(0, 10)}`, rows);
   };
 
   const handlePrint = () => {
@@ -202,11 +210,11 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2.5">
-            <Package className="w-7 h-7 text-emerald-600 dark:text-emerald-400" />
-            Inventário Geral
+            <Wrench className="w-7 h-7 text-emerald-600 dark:text-emerald-400" />
+            <span>Inventário de Sobressalentes & MRO</span>
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            Visão completa do estoque em tempo real com controle de reposição e valores.
+            Gestão de peças de reposição, TAGs de máquinas, criticidade e ponto de pedido para manutenção.
           </p>
         </div>
 
@@ -216,10 +224,10 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             type="button"
             onClick={onOpenAudit}
             className="px-3.5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold flex items-center gap-1.5 border border-slate-200 dark:border-slate-700 transition-colors shadow-sm"
-            title="Realizar balanço ou conferência física do estoque"
+            title="Realizar balanço físico de gavetas e prateleiras"
           >
             <ClipboardList className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-            <span className="hidden sm:inline">Balanço /</span> Conferência
+            <span className="hidden sm:inline">Balanço /</span> Inventário Físico
           </button>
 
           <button
@@ -229,7 +237,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             className="px-3.5 py-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 text-xs font-semibold flex items-center gap-1.5 border border-emerald-200 dark:border-emerald-800 transition-colors shadow-sm"
           >
             <ArrowDownLeft className="w-4 h-4" />
-            <span>+ Entrada</span>
+            <span>+ Entrada (Compra / NF)</span>
           </button>
 
           <button
@@ -239,7 +247,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             className="px-3.5 py-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 dark:hover:bg-amber-900/60 text-amber-700 dark:text-amber-300 text-xs font-semibold flex items-center gap-1.5 border border-amber-200 dark:border-amber-800 transition-colors shadow-sm"
           >
             <ArrowUpRight className="w-4 h-4" />
-            <span>- Saída</span>
+            <span>- Baixa em O.S.</span>
           </button>
 
           <button
@@ -249,7 +257,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold flex items-center gap-2 shadow-md shadow-emerald-600/20 transition-all"
           >
             <Plus className="w-4 h-4" />
-            <span>Cadastrar Produto</span>
+            <span>Cadastrar Sobressalente</span>
           </button>
         </div>
       </div>
@@ -260,7 +268,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
         <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-              Produtos & Unidades
+              Sobressalentes Cadastrados
             </span>
             <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
               <Layers className="w-4 h-4" />
@@ -268,10 +276,10 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           </div>
           <div className="mt-3">
             <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
-              {formatNumber(stats.totalItems)} <span className="text-xs font-normal text-slate-400">un</span>
+              {formatNumber(stats.totalItems)} <span className="text-xs font-normal text-slate-400">peças</span>
             </div>
             <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              {stats.totalProducts} tipos de produtos cadastrados
+              {stats.totalProducts} códigos / SKUs no almoxarifado
             </div>
           </div>
         </div>
@@ -280,7 +288,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
         <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-              Patrimônio em Custo
+              Patrimônio Imobilizado em Peças
             </span>
             <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400">
               <DollarSign className="w-4 h-4" />
@@ -291,27 +299,27 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
               {formatCurrency(stats.totalCost)}
             </div>
             <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Capital investido no estoque atual
+              Valor em estoque de reposição
             </div>
           </div>
         </div>
 
-        {/* Card 3: Valor de Venda & Margem */}
+        {/* Card 3: Peças Críticas A */}
         <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-              Previsão de Faturamento
+              Itens Críticos (Classe A)
             </span>
-            <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400">
-              <TrendingUp className="w-4 h-4" />
+            <div className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400">
+              <ShieldAlert className="w-4 h-4" />
             </div>
           </div>
           <div className="mt-3">
-            <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
-              {formatCurrency(stats.totalSelling)}
+            <div className="text-xl sm:text-2xl font-black text-rose-600 dark:text-rose-400 tracking-tight">
+              {stats.highCriticalityCount} itens
             </div>
-            <div className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-0.5">
-              Lucro Estimado: {formatCurrency(stats.profit)} ({stats.margin.toFixed(0)}%)
+            <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Peças vitais que param a fábrica se faltarem
             </div>
           </div>
         </div>
@@ -326,7 +334,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
-              Alertas de Compra
+              Ponto de Reposição / Zerados
             </span>
             <div
               className={`p-2 rounded-xl ${
@@ -343,7 +351,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
               <span>{stats.alertCount} itens</span>
             </div>
             <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              {stats.outCount} esgotados | {stats.lowCount} abaixo do mínimo
+              {stats.outCount} sem estoque | {stats.lowCount} abaixo do mínimo
             </div>
           </div>
         </div>
@@ -358,7 +366,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             <input
               id="inventory-search-input"
               type="text"
-              placeholder="Buscar por nome, SKU, código de barras, categoria, fornecedor ou prateleira..."
+              placeholder="Buscar por descrição, código SKU, código de barras, TAG de máquina ou localização..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-10 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all"
@@ -385,19 +393,34 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           </div>
 
           {/* Category Select */}
-          <div className="w-full md:w-52">
+          <div className="w-full md:w-48">
             <select
               id="inventory-category-filter"
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
               className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500 transition-all"
             >
-              <option value="ALL">Todas as Categorias ({products.length})</option>
+              <option value="ALL">Todas Categorias ({products.length})</option>
               {categories.map((cat) => (
                 <option key={cat} value={cat}>
                   {cat}
                 </option>
               ))}
+            </select>
+          </div>
+
+          {/* Criticality Filter */}
+          <div className="w-full md:w-44">
+            <select
+              id="inventory-criticality-filter"
+              value={selectedCriticality}
+              onChange={(e) => setSelectedCriticality(e.target.value as any)}
+              className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500 transition-all"
+            >
+              <option value="ALL">Todas Criticidades</option>
+              <option value="HIGH">🔴 Alta (Crítica A)</option>
+              <option value="MEDIUM">🟡 Média (Importante B)</option>
+              <option value="LOW">⚪ Baixa (Geral C)</option>
             </select>
           </div>
 
@@ -425,7 +448,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                   : 'text-amber-700 dark:text-amber-400'
               }`}
             >
-              Baixo ({stats.lowCount})
+              Reposição ({stats.lowCount})
             </button>
             <button
               id="filter-status-out"
@@ -437,7 +460,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                   : 'text-red-700 dark:text-red-400'
               }`}
             >
-              Esgotado ({stats.outCount})
+              Zerado ({stats.outCount})
             </button>
           </div>
 
@@ -474,7 +497,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
               id="export-csv-btn"
               type="button"
               onClick={handleExportCSV}
-              title="Exportar tabela para Excel / CSV"
+              title="Exportar inventário de sobressalentes para Excel / CSV"
               className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors"
             >
               <Download className="w-4 h-4" />
@@ -484,7 +507,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
               id="print-inventory-btn"
               type="button"
               onClick={handlePrint}
-              title="Imprimir Relatório de Inventário"
+              title="Imprimir Relatório de Almoxarifado"
               className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors hidden sm:inline-flex"
             >
               <Printer className="w-4 h-4" />
@@ -496,21 +519,21 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
       {/* Products Display (Table or Cards) */}
       {filteredProducts.length === 0 ? (
         <div className="p-12 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800">
-          <Package className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
+          <Wrench className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
           <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
-            Nenhum produto encontrado
+            Nenhum sobressalente encontrado
           </h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto">
-            {searchTerm || selectedCategory !== 'ALL' || selectedStatus !== 'ALL'
-              ? 'Tente ajustar os filtros ou termo de busca para localizar os itens.'
-              : 'Comece adicionando seu primeiro produto no botão abaixo.'}
+            {searchTerm || selectedCategory !== 'ALL' || selectedStatus !== 'ALL' || selectedCriticality !== 'ALL'
+              ? 'Tente ajustar os filtros ou termo de busca para localizar as peças.'
+              : 'Comece adicionando seus sobressalentes de manutenção no botão abaixo.'}
           </p>
           <button
             type="button"
             onClick={onNewProduct}
             className="mt-4 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl inline-flex items-center gap-1.5 shadow-sm transition-all"
           >
-            <Plus className="w-4 h-4" /> Cadastrar Produto
+            <Plus className="w-4 h-4" /> Cadastrar Sobressalente
           </button>
         </div>
       ) : viewMode === 'table' ? (
@@ -521,19 +544,21 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                 <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/75 dark:bg-slate-800/50 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                   <th className="py-3 px-4">Foto</th>
                   <th className="py-3 px-4">Código / SKU</th>
-                  <th className="py-3 px-4">Produto & Detalhes</th>
+                  <th className="py-3 px-4">Peça / Sobressalente</th>
+                  <th className="py-3 px-4">TAG Equipamento</th>
+                  <th className="py-3 px-4 text-center">Criticidade</th>
                   <th className="py-3 px-4">Categoria</th>
-                  <th className="py-3 px-4 text-center">Estoque Atual</th>
+                  <th className="py-3 px-4 text-center">Saldo Físico</th>
                   <th className="py-3 px-4 text-center">Status</th>
                   <th className="py-3 px-4 text-right">Custo Unit.</th>
-                  <th className="py-3 px-4 text-right">Venda Unit.</th>
-                  <th className="py-3 px-4 text-right">Total em Custo</th>
+                  <th className="py-3 px-4 text-right">Total em Estoque</th>
                   <th className="py-3 px-4 text-center">Ações Rápidas</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-xs">
                 {filteredProducts.map((product) => {
                   const status = getStockStatus(product);
+                  const crit = getCriticalityInfo(product.criticality);
                   const totalCost = product.currentStock * product.costPrice;
 
                   return (
@@ -565,7 +590,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                           </button>
                         ) : (
                           <div className="w-11 h-11 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 flex items-center justify-center text-slate-400">
-                            <Package className="w-5 h-5 opacity-60" />
+                            <Wrench className="w-5 h-5 opacity-60" />
                           </div>
                         )}
                       </td>
@@ -592,11 +617,32 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                             </span>
                           ) : null}
                           {product.supplier ? (
-                            <span className="truncate max-w-[140px] text-slate-400">
+                            <span className="truncate max-w-[130px] text-slate-400">
                               • {product.supplier}
                             </span>
                           ) : null}
                         </div>
+                      </td>
+
+                      {/* Equipment TAG */}
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        {product.equipmentTag ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 font-mono text-[11px] font-medium border border-emerald-200/60 dark:border-emerald-800/60">
+                            <Tag className="w-3 h-3" />
+                            {product.equipmentTag}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 text-[11px]">Uso Geral</span>
+                        )}
+                      </td>
+
+                      {/* Criticality */}
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold border ${crit.bg} ${crit.color} ${crit.border}`}
+                        >
+                          {crit.label}
+                        </span>
                       </td>
 
                       {/* Category */}
@@ -628,13 +674,12 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                         </span>
                       </td>
 
-                      {/* Prices */}
+                      {/* Unit Cost */}
                       <td className="py-3.5 px-4 text-right whitespace-nowrap font-medium text-slate-700 dark:text-slate-300">
                         {formatCurrency(product.costPrice)}
                       </td>
-                      <td className="py-3.5 px-4 text-right whitespace-nowrap font-semibold text-slate-900 dark:text-slate-100">
-                        {formatCurrency(product.sellingPrice)}
-                      </td>
+
+                      {/* Total Cost Value */}
                       <td className="py-3.5 px-4 text-right whitespace-nowrap font-bold text-emerald-700 dark:text-emerald-400">
                         {formatCurrency(totalCost)}
                       </td>
@@ -655,7 +700,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                             id={`row-exit-${product.id}`}
                             type="button"
                             onClick={() => onNewExit(product)}
-                            title="Lançar Saída (-)"
+                            title="Baixa em O.S. (-)"
                             className="p-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:hover:bg-amber-900 dark:text-amber-300 transition-colors"
                           >
                             <ArrowUpRight className="w-3.5 h-3.5" />
@@ -664,7 +709,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                             id={`row-edit-${product.id}`}
                             type="button"
                             onClick={() => onEditProduct(product)}
-                            title="Editar Produto"
+                            title="Editar Sobressalente"
                             className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-400 transition-colors"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
@@ -673,7 +718,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                             id={`row-delete-${product.id}`}
                             type="button"
                             onClick={() => setProductToDelete(product)}
-                            title="Excluir Produto"
+                            title="Excluir Sobressalente"
                             className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-950/50 transition-colors"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -692,6 +737,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
           {filteredProducts.map((product) => {
             const status = getStockStatus(product);
+            const crit = getCriticalityInfo(product.criticality);
             const totalCost = product.currentStock * product.costPrice;
 
             return (
@@ -724,7 +770,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                       </button>
                     ) : (
                       <div className="w-14 h-14 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 flex items-center justify-center text-slate-400 shrink-0">
-                        <Package className="w-6 h-6 opacity-60" />
+                        <Wrench className="w-6 h-6 opacity-60" />
                       </div>
                     )}
 
@@ -733,11 +779,18 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                         <span className="font-mono text-[11px] font-bold text-slate-500 dark:text-slate-400">
                           {product.code}
                         </span>
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold border shrink-0 ${status.bg} ${status.color} ${status.border}`}
-                        >
-                          {status.label}
-                        </span>
+                        <div className="flex items-center gap-1">
+                          <span
+                            className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${crit.bg} ${crit.color} ${crit.border}`}
+                          >
+                            {crit.label.split(' ')[0]}
+                          </span>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold border shrink-0 ${status.bg} ${status.color} ${status.border}`}
+                          >
+                            {status.label}
+                          </span>
+                        </div>
                       </div>
                       <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100 line-clamp-1 mt-0.5">
                         {product.name}
@@ -750,13 +803,18 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 mt-2 text-xs text-slate-500 dark:text-slate-400">
+                  <div className="flex flex-wrap items-center gap-1.5 mt-2 text-xs text-slate-500 dark:text-slate-400">
                     <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[10px] font-medium">
                       {product.category}
                     </span>
+                    {product.equipmentTag && (
+                      <span className="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 font-mono text-[10px] font-medium flex items-center gap-1">
+                        <Tag className="w-3 h-3" /> {product.equipmentTag}
+                      </span>
+                    )}
                     {product.location && (
                       <span className="flex items-center gap-1 text-[11px]">
-                        <MapPin className="w-3 h-3" /> {product.location}
+                        <MapPin className="w-3 h-3 text-slate-400" /> {product.location}
                       </span>
                     )}
                   </div>
@@ -765,23 +823,23 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                 {/* Numbers Box */}
                 <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800/80 grid grid-cols-2 gap-2 text-xs">
                   <div>
-                    <span className="text-[10px] text-slate-400 block">Estoque Atual</span>
+                    <span className="text-[10px] text-slate-400 block">Saldo Físico</span>
                     <span className="text-base font-black text-slate-900 dark:text-slate-100">
                       {product.currentStock}{' '}
                       <span className="text-xs font-normal text-slate-400">{product.unit}</span>
                     </span>
                     <span className="text-[10px] text-slate-400 block">
-                      Mínimo: {product.minStock}
+                      Mínimo: {product.minStock} {product.unit}
                     </span>
                   </div>
 
                   <div className="text-right">
-                    <span className="text-[10px] text-slate-400 block">Preço de Venda</span>
+                    <span className="text-[10px] text-slate-400 block">Custo Unitário</span>
                     <span className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                      {formatCurrency(product.sellingPrice)}
+                      {formatCurrency(product.costPrice)}
                     </span>
                     <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium block">
-                      Custo: {formatCurrency(product.costPrice)}
+                      Total: {formatCurrency(totalCost)}
                     </span>
                   </div>
                 </div>
@@ -801,7 +859,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                       onClick={() => onNewExit(product)}
                       className="px-2.5 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 text-xs font-semibold flex items-center gap-1 transition-colors"
                     >
-                      <ArrowUpRight className="w-3.5 h-3.5" /> - Saída
+                      <ArrowUpRight className="w-3.5 h-3.5" /> - Baixa O.S.
                     </button>
                   </div>
 
@@ -877,12 +935,12 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                 <Trash2 className="w-5 h-5" />
               </div>
               <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
-                Excluir Produto do Estoque
+                Excluir Sobressalente
               </h3>
             </div>
             <p className="text-xs text-slate-600 dark:text-slate-300">
-              Tem certeza de que deseja remover{' '}
-              <strong>"{productToDelete.name}"</strong> ([{productToDelete.code}])? O saldo atual é{' '}
+              Tem certeza de que deseja remover o item{' '}
+              <strong>"{productToDelete.name}"</strong> ([{productToDelete.code}]) do almoxarifado? O saldo físico atual é{' '}
               <strong>{productToDelete.currentStock} {productToDelete.unit}</strong>.
             </p>
             <div className="flex items-center justify-end gap-3 pt-2">
@@ -912,7 +970,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
         isOpen={isScannerOpen}
         onClose={() => setIsScannerOpen(false)}
         onScan={(scanned) => setSearchTerm(scanned)}
-        title="Buscar Produto por Código de Barras"
+        title="Buscar Sobressalente por Código de Barras"
       />
     </div>
   );

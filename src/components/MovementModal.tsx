@@ -3,6 +3,8 @@ import {
   X,
   ArrowDownLeft,
   ArrowUpRight,
+  Barcode,
+  Camera,
   Search,
   Package,
   Calendar,
@@ -10,12 +12,11 @@ import {
   FileText,
   AlertCircle,
   CheckCircle2,
-  DollarSign,
-  Barcode,
-  Camera,
+  Tag,
+  Wrench,
 } from 'lucide-react';
 import { Product, MovementType, EntryReason, ExitReason } from '../types';
-import { formatCurrency, formatNumber, getStockStatus } from '../lib/utils';
+import { formatCurrency, getStockStatus } from '../lib/utils';
 import { BarcodeScannerModal } from './BarcodeScannerModal';
 
 interface MovementModalProps {
@@ -28,22 +29,24 @@ interface MovementModalProps {
 }
 
 const ENTRY_REASONS: EntryReason[] = [
-  'Compra de Fornecedor',
-  'Devolução de Cliente',
-  'Entrada de Produção',
-  'Ajuste de Balanço (+)',
-  'Transferência Recebida',
+  'Compra / Reposição de Sobressalentes',
+  'Devolução de Sobra de O.S.',
+  'Entrada por Fabricação Interna / Usinagem',
+  'Retorno de Recuperação / Recondicionamento',
+  'Ajuste de Inventário (+)',
+  'Transferência entre Almoxarifados',
   'Outros',
 ];
 
 const EXIT_REASONS: ExitReason[] = [
-  'Venda / Pedido',
-  'Uso e Consumo Interno',
-  'Avaria / Vencimento / Perda',
-  'Devolução a Fornecedor',
-  'Amostra Grátis / Brinde',
-  'Ajuste de Balanço (-)',
-  'Transferência Enviada',
+  'Aplicação em O.S. Preventiva',
+  'Aplicação em O.S. Corretiva (Urgente)',
+  'Aplicação em O.S. Preditiva',
+  'Aplicação em Reforma / Melhoria / Capex',
+  'Uso e Consumo em Oficina',
+  'Envio para Recondicionamento Externo',
+  'Descarte / Sucata / Danificado',
+  'Ajuste de Inventário (-)',
   'Outros',
 ];
 
@@ -63,7 +66,7 @@ export const MovementModal: React.FC<MovementModalProps> = ({
   const [reason, setReason] = useState('');
   const [documentNumber, setDocumentNumber] = useState('');
   const [contactName, setContactName] = useState('');
-  const [responsible, setResponsible] = useState('Almoxarife');
+  const [responsible, setResponsible] = useState('Almoxarife / Técnico');
   const [notes, setNotes] = useState('');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 16));
   const [isScannerOpen, setIsScannerOpen] = useState(false);
@@ -77,20 +80,22 @@ export const MovementModal: React.FC<MovementModalProps> = ({
       const targetProd = preselectedProduct || (products.length > 0 ? products[0] : null);
       if (targetProd) {
         setSelectedProductId(targetProd.id);
-        setUnitPrice(
-          String(initialType === 'IN' ? targetProd.costPrice : targetProd.sellingPrice)
-        );
+        setUnitPrice(String(targetProd.costPrice || 0));
         if (initialType === 'IN') {
           setContactName(targetProd.supplier || '');
         } else {
-          setContactName('');
+          setContactName(targetProd.equipmentTag ? `TAG: ${targetProd.equipmentTag}` : '');
         }
       } else {
         setSelectedProductId('');
         setUnitPrice('');
         setContactName('');
       }
-      setReason(initialType === 'IN' ? 'Compra de Fornecedor' : 'Venda / Pedido');
+      setReason(
+        initialType === 'IN'
+          ? 'Compra / Reposição de Sobressalentes'
+          : 'Aplicação em O.S. Preventiva'
+      );
       setQuantity('1');
       setDocumentNumber('');
       setNotes('');
@@ -103,71 +108,63 @@ export const MovementModal: React.FC<MovementModalProps> = ({
   // When type changes, update default reason and price
   const handleTypeChange = (newType: MovementType) => {
     setType(newType);
-    setReason(newType === 'IN' ? 'Compra de Fornecedor' : 'Venda / Pedido');
+    setReason(
+      newType === 'IN'
+        ? 'Compra / Reposição de Sobressalentes'
+        : 'Aplicação em O.S. Preventiva'
+    );
     const selectedProd = products.find((p) => p.id === selectedProductId);
     if (selectedProd) {
-      setUnitPrice(
-        String(newType === 'IN' ? selectedProd.costPrice : selectedProd.sellingPrice)
-      );
+      setUnitPrice(String(selectedProd.costPrice || 0));
       if (newType === 'IN' && selectedProd.supplier) {
         setContactName(selectedProd.supplier);
+      } else if (newType === 'OUT' && selectedProd.equipmentTag) {
+        setContactName(`TAG: ${selectedProd.equipmentTag}`);
       }
     }
   };
 
   const handleProductSelect = (prod: Product) => {
     setSelectedProductId(prod.id);
-    setUnitPrice(String(type === 'IN' ? prod.costPrice : prod.sellingPrice));
+    setUnitPrice(String(prod.costPrice || 0));
     if (type === 'IN' && prod.supplier) {
       setContactName(prod.supplier);
+    } else if (type === 'OUT' && prod.equipmentTag) {
+      setContactName(`TAG: ${prod.equipmentTag}`);
     }
-    setProductSearch('');
   };
 
-  const currentProduct = products.find((p) => p.id === selectedProductId);
-  const qty = parseFloat(quantity) || 0;
-  const price = parseFloat(unitPrice) || 0;
-  const totalValue = qty * price;
-
-  // Calculated resulting stock
-  const currentStock = currentProduct ? currentProduct.currentStock : 0;
-  const resultingStock =
-    type === 'IN'
-      ? currentStock + qty
-      : Math.max(0, currentStock - qty);
-
-  const isOverdraft = type === 'OUT' && qty > currentStock;
-
-  // Filter products for search
-  const filteredProducts = products.filter((p) => {
-    if (!productSearch.trim()) return true;
-    const term = productSearch.toLowerCase();
-    return (
-      p.name.toLowerCase().includes(term) ||
-      p.code.toLowerCase().includes(term) ||
-      (p.barcode && p.barcode.toLowerCase().includes(term)) ||
-      p.category.toLowerCase().includes(term)
-    );
-  });
-
-  const handleBarcodeScan = (scanned: string) => {
+  const handleBarcodeScan = (scannedCode: string) => {
+    setIsScannerOpen(false);
     const found = products.find(
       (p) =>
-        p.barcode === scanned ||
-        p.code.toLowerCase() === scanned.toLowerCase() ||
-        p.id === scanned
+        p.barcode === scannedCode ||
+        p.code.toLowerCase() === scannedCode.toLowerCase()
     );
     if (found) {
       handleProductSelect(found);
     } else {
-      setProductSearch(scanned);
+      setErrorMsg(
+        `Nenhuma peça encontrada com o código "${scannedCode}". Cadastre o sobressalente primeiro.`
+      );
     }
   };
+
+  const currentProduct = products.find((p) => p.id === selectedProductId);
+
+  // Calculations
+  const qty = parseFloat(quantity) || 0;
+  const price = parseFloat(unitPrice) || 0;
+  const totalValue = qty * price;
+  const currentStock = currentProduct ? currentProduct.currentStock : 0;
+  const resultingStock =
+    type === 'IN' ? currentStock + qty : currentStock - qty;
+  const isOverdraft = type === 'OUT' && resultingStock < 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProductId) {
-      setErrorMsg('Selecione um produto para movimentar.');
+      setErrorMsg('Selecione uma peça / sobressalente.');
       return;
     }
     if (qty <= 0) {
@@ -184,19 +181,32 @@ export const MovementModal: React.FC<MovementModalProps> = ({
         quantity: qty,
         unitPrice: price,
         reason,
-        documentNumber,
-        contactName,
-        responsible,
-        notes,
-        timestamp: new Date(date).toISOString(),
+        documentNumber: documentNumber.trim() || undefined,
+        contactName: contactName.trim() || undefined,
+        responsible: responsible.trim() || 'Almoxarife / Técnico',
+        notes: notes.trim() || undefined,
+        timestamp: date ? new Date(date).toISOString() : new Date().toISOString(),
       });
       onClose();
     } catch (err: any) {
-      setErrorMsg(err?.message || 'Erro ao lançar movimentação.');
+      setErrorMsg(err?.message || 'Erro ao registrar movimentação.');
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  // Filter products by search query
+  const filteredProducts = products.filter((p) => {
+    if (!productSearch) return true;
+    const q = productSearch.toLowerCase();
+    return (
+      p.name.toLowerCase().includes(q) ||
+      p.code.toLowerCase().includes(q) ||
+      (p.barcode && p.barcode.toLowerCase().includes(q)) ||
+      (p.equipmentTag && p.equipmentTag.toLowerCase().includes(q)) ||
+      p.category.toLowerCase().includes(q)
+    );
+  });
 
   if (!isOpen) return null;
 
@@ -210,8 +220,8 @@ export const MovementModal: React.FC<MovementModalProps> = ({
           id="movement-modal-container"
           className="w-full max-w-xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 my-8 overflow-hidden flex flex-col max-h-[92vh]"
         >
-          {/* Header with Type Selector */}
-          <div className="p-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
             <div className="flex items-center gap-3">
               <div
                 className={`p-2.5 rounded-xl ${
@@ -228,12 +238,14 @@ export const MovementModal: React.FC<MovementModalProps> = ({
               </div>
               <div>
                 <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                  {type === 'IN' ? 'Registrar Entrada de Estoque' : 'Registrar Saída de Estoque'}
+                  {type === 'IN'
+                    ? 'Entrada no Almoxarifado'
+                    : 'Baixa / Aplicação em O.S.'}
                 </h2>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
                   {type === 'IN'
-                    ? 'Adicione itens recebidos por compra, devolução ou ajuste'
-                    : 'Dê baixa por venda, consumo, perda ou remessa'}
+                    ? 'Recebimento de compra, retorno de usinagem ou devolução de sobra'
+                    : 'Baixa de peças para Ordens de Serviço, máquinas ou reformas'}
                 </p>
               </div>
             </div>
@@ -262,7 +274,7 @@ export const MovementModal: React.FC<MovementModalProps> = ({
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
                   }`}
                 >
-                  <ArrowUpRight className="w-3.5 h-3.5" /> Saída
+                  <ArrowUpRight className="w-3.5 h-3.5" /> Saída (O.S.)
                 </button>
               </div>
               <button
@@ -288,7 +300,7 @@ export const MovementModal: React.FC<MovementModalProps> = ({
             {/* Product Selector */}
             <div>
               <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                Produto *
+                Peça / Sobressalente *
               </label>
 
               <div className="flex gap-2 mb-2">
@@ -297,7 +309,7 @@ export const MovementModal: React.FC<MovementModalProps> = ({
                   <input
                     id="movement-product-search-input"
                     type="text"
-                    placeholder="Buscar por nome, código SKU ou código de barras..."
+                    placeholder="Buscar por nome, SKU, TAG de máquina ou código de barras..."
                     value={productSearch}
                     onChange={(e) => setProductSearch(e.target.value)}
                     className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all"
@@ -307,11 +319,11 @@ export const MovementModal: React.FC<MovementModalProps> = ({
                   id="movement-scan-barcode-btn"
                   type="button"
                   onClick={() => setIsScannerOpen(true)}
-                  title="Escanear com Câmera"
+                  title="Escanear com Câmera do Celular"
                   className="px-3 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl flex items-center gap-1.5 text-xs font-medium border border-slate-200 dark:border-slate-700 transition-colors"
                 >
                   <Camera className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                  <span className="hidden sm:inline">Escanear</span>
+                  <span className="hidden sm:inline">Bipar Câmera</span>
                 </button>
               </div>
 
@@ -328,7 +340,7 @@ export const MovementModal: React.FC<MovementModalProps> = ({
               >
                 {filteredProducts.map((p) => (
                   <option key={p.id} value={p.id}>
-                    [{p.code}] {p.name} - Estoque Atual: {p.currentStock} {p.unit}
+                    [{p.code}] {p.name} {p.equipmentTag ? `(TAG: ${p.equipmentTag})` : ''} - Saldo: {p.currentStock} {p.unit}
                   </option>
                 ))}
               </select>
@@ -361,6 +373,14 @@ export const MovementModal: React.FC<MovementModalProps> = ({
                           <>
                             <span>•</span>
                             <span>{currentProduct.location}</span>
+                          </>
+                        )}
+                        {currentProduct.equipmentTag && (
+                          <>
+                            <span>•</span>
+                            <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                              TAG: {currentProduct.equipmentTag}
+                            </span>
                           </>
                         )}
                       </div>
@@ -408,7 +428,7 @@ export const MovementModal: React.FC<MovementModalProps> = ({
 
               <div>
                 <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  {type === 'IN' ? 'Preço de Custo (R$)' : 'Preço de Saída (R$)'}
+                  Custo Unitário (R$)
                 </label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400">
@@ -428,7 +448,7 @@ export const MovementModal: React.FC<MovementModalProps> = ({
 
               <div>
                 <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  Valor Total Previsto
+                  Custo Total Movimentado
                 </label>
                 <div className="px-3.5 py-2.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center justify-between">
                   <span>{formatCurrency(totalValue)}</span>
@@ -454,7 +474,7 @@ export const MovementModal: React.FC<MovementModalProps> = ({
                 </div>
                 {isOverdraft && (
                   <span className="font-semibold text-red-600 dark:text-red-400">
-                    Aviso: Saída superior ao saldo em estoque!
+                    Atenção: A baixa excede o saldo físico no almoxarifado!
                   </span>
                 )}
               </div>
@@ -464,7 +484,7 @@ export const MovementModal: React.FC<MovementModalProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div>
                 <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  Motivo da Movimentação *
+                  Motivo / Finalidade da Movimentação *
                 </label>
                 <select
                   id="movement-reason-select"
@@ -488,12 +508,12 @@ export const MovementModal: React.FC<MovementModalProps> = ({
 
               <div>
                 <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  Documento / NF / Pedido / Requisição
+                  {type === 'IN' ? 'Nº da Nota Fiscal / Pedido' : 'Nº da O.S. (Ordem de Serviço)'}
                 </label>
                 <input
                   id="movement-document-input"
                   type="text"
-                  placeholder="Ex: NF-10492 ou PED-3021"
+                  placeholder={type === 'IN' ? 'Ex: NF-10492 ou PED-SKF-89' : 'Ex: OS-2026-089 ou OS-PREV-12'}
                   value={documentNumber}
                   onChange={(e) => setDocumentNumber(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 transition-all"
@@ -502,13 +522,15 @@ export const MovementModal: React.FC<MovementModalProps> = ({
 
               <div>
                 <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  {type === 'IN' ? 'Fornecedor / Origem' : 'Cliente / Solicitante / Destino'}
+                  {type === 'IN' ? 'Fornecedor / Fabricante' : 'TAG do Equipamento / Destino'}
                 </label>
                 <input
                   id="movement-contact-input"
                   type="text"
                   placeholder={
-                    type === 'IN' ? 'Ex: Fornecedor ABC' : 'Ex: Cliente ou Manutenção'
+                    type === 'IN'
+                      ? 'Ex: SKF Distribuidora Brasil'
+                      : 'Ex: TAG: PRE-HY-02 ou Esteira 01'
                   }
                   value={contactName}
                   onChange={(e) => setContactName(e.target.value)}
@@ -518,14 +540,14 @@ export const MovementModal: React.FC<MovementModalProps> = ({
 
               <div>
                 <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  Responsável pelo Lançamento
+                  Técnico / Mecânico / Almoxarife
                 </label>
                 <div className="relative">
                   <User className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     id="movement-responsible-input"
                     type="text"
-                    placeholder="Ex: Carlos (Almoxarifado)"
+                    placeholder="Ex: Mecânico André / Carlos"
                     value={responsible}
                     onChange={(e) => setResponsible(e.target.value)}
                     className="w-full pl-9 pr-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 transition-all"
@@ -535,7 +557,7 @@ export const MovementModal: React.FC<MovementModalProps> = ({
 
               <div className="sm:col-span-2">
                 <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  Data e Hora do Movimento
+                  Data e Hora do Registro
                 </label>
                 <div className="relative">
                   <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -551,12 +573,12 @@ export const MovementModal: React.FC<MovementModalProps> = ({
 
               <div className="sm:col-span-2">
                 <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  Observações Adicionais
+                  Observações Técnicas / Diagnóstico da O.S.
                 </label>
                 <textarea
                   id="movement-notes-input"
                   rows={2}
-                  placeholder="Informações extras, estado da embalagem, transportadora, etc..."
+                  placeholder="Ex: Troca preventiva de rolamentos devido a vibração detectada na análise preditiva..."
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 transition-all resize-none"
@@ -590,7 +612,7 @@ export const MovementModal: React.FC<MovementModalProps> = ({
                   ? 'Registrando...'
                   : type === 'IN'
                   ? 'Confirmar Entrada'
-                  : 'Confirmar Saída'}
+                  : 'Confirmar Baixa em O.S.'}
               </button>
             </div>
           </form>

@@ -141,10 +141,10 @@ export const ExitsView: React.FC<ExitsViewProps> = ({
         <div>
           <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2.5">
             <ArrowUpRight className="w-7 h-7 text-amber-600 dark:text-amber-400" />
-            Histórico de Saídas
+            Histórico de Saídas & Baixas em O.S.
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            Registro de vendas, consumo interno, perdas e transferências de estoque.
+            Registro de aplicação de peças em Ordem de Serviço, preventiva, corretiva e perdas.
           </p>
         </div>
 

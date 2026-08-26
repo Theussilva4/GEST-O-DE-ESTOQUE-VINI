@@ -1,6 +1,6 @@
 {
   "name": "Controle de Estoque Profissional",
-  "description": "Sistema completo e responsivo de gestão de estoque com cadastro de produtos, histórico de entradas e saídas, inventário geral e alertas.",
+  "description": "Sistema de controle de almoxarifado e estoque para manutenção industrial com cadastro de sobressalentes, TAGs de máquinas, leitor de código de barras, fotos de itens, histórico de entradas e baixas em O.S.",
   "requestFramePermissions": ["camera"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

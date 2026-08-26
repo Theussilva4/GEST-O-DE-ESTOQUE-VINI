@@ -1,4 +1,4 @@
-import { Product, Movement } from '../types';
+import { Product, Movement, MaintenanceCriticality } from '../types';
 
 export function formatCurrency(value: number): string {
   return new Intl.NumberFormat('pt-BR', {
@@ -83,6 +83,42 @@ export function getStockStatus(product: Product): {
   };
 }
 
+export function getCriticalityInfo(criticality?: MaintenanceCriticality): {
+  label: string;
+  shortLabel: string;
+  color: string;
+  bg: string;
+  border: string;
+} {
+  switch (criticality) {
+    case 'HIGH':
+      return {
+        label: 'Alta - Peça Crítica (Parada de Fábrica)',
+        shortLabel: 'Crítica A',
+        color: 'text-red-700 dark:text-red-300',
+        bg: 'bg-red-100 dark:bg-red-950/70',
+        border: 'border-red-300 dark:border-red-700',
+      };
+    case 'MEDIUM':
+      return {
+        label: 'Média - Importante',
+        shortLabel: 'Média B',
+        color: 'text-amber-700 dark:text-amber-300',
+        bg: 'bg-amber-100 dark:bg-amber-950/70',
+        border: 'border-amber-300 dark:border-amber-700',
+      };
+    case 'LOW':
+    default:
+      return {
+        label: 'Baixa - Não Crítica / Geral',
+        shortLabel: 'Geral C',
+        color: 'text-slate-600 dark:text-slate-400',
+        bg: 'bg-slate-100 dark:bg-slate-800',
+        border: 'border-slate-300 dark:border-slate-700',
+      };
+  }
+}
+
 export function exportToCSV(filename: string, rows: Array<Record<string, any>>): void {
   if (!rows || !rows.length) return;
   const separator = ';';
@@ -114,3 +150,4 @@ export function exportToCSV(filename: string, rows: Array<Record<string, any>>):
   link.click();
   document.body.removeChild(link);
 }
+
