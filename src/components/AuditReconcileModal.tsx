@@ -176,19 +176,33 @@ export const AuditReconcileModal: React.FC<AuditReconcileModalProps> = ({
                       : 'bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/80'
                   }`}
                 >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs font-bold text-slate-500 dark:text-slate-400">
-                        {product.code}
-                      </span>
-                      <span className="font-bold text-sm text-slate-900 dark:text-slate-100">
-                        {product.name}
-                      </span>
-                    </div>
-                    <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-2">
-                      <span>Categoria: {product.category}</span>
-                      {product.location && <span>• Local: {product.location}</span>}
-                      <span>• Custo: {formatCurrency(product.costPrice)}</span>
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    {product.imageUrl ? (
+                      <img
+                        src={product.imageUrl}
+                        alt={product.name}
+                        referrerPolicy="no-referrer"
+                        className="w-10 h-10 rounded-lg object-cover border border-slate-200 dark:border-slate-700 shrink-0 bg-white"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700 flex items-center justify-center text-slate-400 shrink-0">
+                        <Package className="w-5 h-5 opacity-60" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs font-bold text-slate-500 dark:text-slate-400">
+                          {product.code}
+                        </span>
+                        <span className="font-bold text-sm text-slate-900 dark:text-slate-100 truncate">
+                          {product.name}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-2">
+                        <span>Categoria: {product.category}</span>
+                        {product.location && <span>• Local: {product.location}</span>}
+                        <span>• Custo: {formatCurrency(product.costPrice)}</span>
+                      </div>
                     </div>
                   </div>
 

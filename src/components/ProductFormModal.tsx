@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   X,
   PackagePlus,
@@ -13,6 +13,11 @@ import {
   CheckCircle2,
   TrendingUp,
   Percent,
+  Image as ImageIcon,
+  UploadCloud,
+  Trash2,
+  Link,
+  Sparkles,
 } from 'lucide-react';
 import { Product, ProductUnit } from '../types';
 import { BarcodeScannerModal } from './BarcodeScannerModal';
@@ -51,6 +56,49 @@ const SUGGESTED_CATEGORIES = [
   'Outros',
 ];
 
+// Helper to compress images client-side into lightweight base64
+async function compressImageFile(file: File, maxWidth = 800, maxHeight = 800, quality = 0.82): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(e.target?.result as string);
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve(dataUrl);
+      };
+      img.onerror = (err) => reject(err);
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = (err) => reject(err);
+    reader.readAsDataURL(file);
+  });
+}
+
 export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   isOpen,
   onClose,
@@ -65,6 +113,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     barcode: '',
     name: '',
     description: '',
+    imageUrl: '',
     category: '',
     unit: 'UN' as ProductUnit,
     initialStock: '0',
@@ -80,6 +129,11 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [showUrlInput, setShowUrlInput] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement | null>(null);
 
   // Sync state on open / edit
   useEffect(() => {
@@ -89,6 +143,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         barcode: productToEdit.barcode || '',
         name: productToEdit.name,
         description: productToEdit.description || '',
+        imageUrl: productToEdit.imageUrl || '',
         category: productToEdit.category,
         unit: productToEdit.unit,
         initialStock: String(productToEdit.currentStock),
@@ -100,12 +155,14 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         location: productToEdit.location || '',
         responsible: 'Almoxarife',
       });
+      setShowUrlInput(Boolean(productToEdit.imageUrl && productToEdit.imageUrl.startsWith('http')));
     } else {
       setFormData({
         code: '',
         barcode: '',
         name: '',
         description: '',
+        imageUrl: '',
         category: '',
         unit: 'UN',
         initialStock: '0',
@@ -117,6 +174,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         location: '',
         responsible: 'Almoxarife',
       });
+      setShowUrlInput(false);
     }
     setErrorMsg(null);
   }, [productToEdit, isOpen]);
@@ -130,6 +188,33 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const allCategories = Array.from(
     new Set([...SUGGESTED_CATEGORIES, ...existingCategories])
   ).filter(Boolean);
+
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setErrorMsg('Selecione um arquivo de imagem válido (JPG, PNG, WebP).');
+      return;
+    }
+
+    try {
+      setIsUploadingImage(true);
+      setErrorMsg(null);
+      const base64 = await compressImageFile(file, 800, 800, 0.82);
+      setFormData((prev) => ({ ...prev, imageUrl: base64 }));
+    } catch (err) {
+      console.error('Error compressing image:', err);
+      setErrorMsg('Falha ao processar imagem.');
+    } finally {
+      setIsUploadingImage(false);
+      if (e.target) e.target.value = '';
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setFormData((prev) => ({ ...prev, imageUrl: '' }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -147,6 +232,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setErrorMsg(null);
       await onSave({
         ...formData,
+        imageUrl: formData.imageUrl.trim() || undefined,
         initialStock: parseFloat(formData.initialStock) || 0,
         minStock: parseFloat(formData.minStock) || 0,
         maxStock: formData.maxStock ? parseFloat(formData.maxStock) : undefined,
@@ -185,8 +271,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 </h2>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
                   {isEditing
-                    ? 'Atualize as informações cadastrais e preços do item'
-                    : 'Preencha os dados para registrar o item no estoque'}
+                    ? 'Atualize foto, código de barras e informações cadastrais'
+                    : 'Preencha os dados e anexe a foto para registrar o item'}
                 </p>
               </div>
             </div>
@@ -208,6 +294,118 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 <span>{errorMsg}</span>
               </div>
             )}
+
+            {/* PRODUCT PHOTO ATTACHMENT SECTION */}
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3 flex items-center gap-1.5">
+                <ImageIcon className="w-3.5 h-3.5" /> Foto do Produto / Imagem Anexa
+              </h3>
+
+              {/* Hidden file inputs for Camera and Gallery */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleImageFileChange}
+              />
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={handleImageFileChange}
+              />
+
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+                {/* Photo Preview Box */}
+                <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-xl bg-white dark:bg-slate-800 border-2 border-dashed border-slate-300 dark:border-slate-600 flex items-center justify-center overflow-hidden shrink-0 shadow-inner group">
+                  {formData.imageUrl ? (
+                    <>
+                      <img
+                        src={formData.imageUrl}
+                        alt="Foto do produto"
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleRemoveImage}
+                        title="Remover foto"
+                        className="absolute top-1 right-1 p-1 rounded-lg bg-red-600 hover:bg-red-700 text-white shadow-md transition-opacity opacity-90 hover:opacity-100"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </>
+                  ) : (
+                    <div className="text-center p-2">
+                      <ImageIcon className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto mb-1" />
+                      <span className="text-[10px] text-slate-400 block font-medium">Sem foto</span>
+                    </div>
+                  )}
+
+                  {isUploadingImage && (
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center">
+                      <div className="w-5 h-5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Upload Action Buttons */}
+                <div className="flex-1 space-y-2 w-full">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* Take photo directly with phone camera */}
+                    <button
+                      id="take-product-photo-btn"
+                      type="button"
+                      onClick={() => cameraInputRef.current?.click()}
+                      className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-sm shadow-emerald-600/20 transition-colors"
+                    >
+                      <Camera className="w-4 h-4" />
+                      <span>Tirar Foto (Câmera)</span>
+                    </button>
+
+                    {/* Choose from gallery / file */}
+                    <button
+                      id="upload-product-photo-btn"
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-3 py-2 rounded-xl bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-colors"
+                    >
+                      <UploadCloud className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                      <span>Galeria / Arquivo</span>
+                    </button>
+
+                    {/* URL toggle */}
+                    <button
+                      type="button"
+                      onClick={() => setShowUrlInput(!showUrlInput)}
+                      className="px-3 py-2 rounded-xl bg-slate-200/80 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-medium flex items-center gap-1.5 transition-colors"
+                    >
+                      <Link className="w-3.5 h-3.5" />
+                      <span>Inserir URL</span>
+                    </button>
+                  </div>
+
+                  {showUrlInput && (
+                    <div className="pt-1">
+                      <input
+                        type="url"
+                        placeholder="https://exemplo.com/imagem-produto.jpg"
+                        value={formData.imageUrl}
+                        onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+                  )}
+
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
+                    Anexe a foto para identificar o item facilmente no inventário, nas conferências e nas movimentações.
+                  </p>
+                </div>
+              </div>
+            </div>
 
             {/* Basic Info Section */}
             <div>
@@ -264,8 +462,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                       id="open-barcode-scanner-btn"
                       type="button"
                       onClick={() => setIsScannerOpen(true)}
-                      title="Escanear com Câmera"
-                      className="px-3 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl flex items-center justify-center border border-slate-200 dark:border-slate-700 transition-colors"
+                      title="Escanear Código de Barras com Câmera"
+                      className="px-3.5 py-2.5 bg-slate-100 hover:bg-emerald-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl flex items-center justify-center border border-slate-200 dark:border-slate-700 transition-colors shadow-xs"
                     >
                       <Camera className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                     </button>

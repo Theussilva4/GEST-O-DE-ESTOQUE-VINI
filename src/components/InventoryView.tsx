@@ -59,6 +59,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [previewImage, setPreviewImage] = useState<{ url: string; name: string; code: string } | null>(null);
 
   // Categories list
   const categories = useMemo(() => {
@@ -518,6 +519,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/75 dark:bg-slate-800/50 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  <th className="py-3 px-4">Foto</th>
                   <th className="py-3 px-4">Código / SKU</th>
                   <th className="py-3 px-4">Produto & Detalhes</th>
                   <th className="py-3 px-4">Categoria</th>
@@ -539,6 +541,35 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                       key={product.id}
                       className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors group"
                     >
+                      {/* Photo Thumbnail */}
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        {product.imageUrl ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPreviewImage({
+                                url: product.imageUrl!,
+                                name: product.name,
+                                code: product.code,
+                              })
+                            }
+                            title="Clique para ampliar foto"
+                            className="relative w-11 h-11 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-white group/img shadow-xs hover:ring-2 hover:ring-emerald-500 transition-all block"
+                          >
+                            <img
+                              src={product.imageUrl}
+                              alt={product.name}
+                              referrerPolicy="no-referrer"
+                              className="w-full h-full object-cover group-hover/img:scale-105 transition-transform duration-200"
+                            />
+                          </button>
+                        ) : (
+                          <div className="w-11 h-11 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 flex items-center justify-center text-slate-400">
+                            <Package className="w-5 h-5 opacity-60" />
+                          </div>
+                        )}
+                      </td>
+
                       {/* Code & Barcode */}
                       <td className="py-3.5 px-4 font-mono font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap">
                         <div>{product.code}</div>
@@ -666,26 +697,60 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             return (
               <div
                 key={product.id}
-                className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between space-y-3 hover:border-emerald-500/50 transition-all"
+                className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between space-y-3 hover:border-emerald-500/50 transition-all overflow-hidden"
               >
                 <div>
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <span className="font-mono text-[11px] font-bold text-slate-500 dark:text-slate-400">
-                        {product.code}
-                      </span>
-                      <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100 line-clamp-1">
+                  <div className="flex items-start gap-3">
+                    {/* Thumbnail */}
+                    {product.imageUrl ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPreviewImage({
+                            url: product.imageUrl!,
+                            name: product.name,
+                            code: product.code,
+                          })
+                        }
+                        title="Ver foto ampliada"
+                        className="w-14 h-14 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-white shrink-0 shadow-inner group/cardimg relative"
+                      >
+                        <img
+                          src={product.imageUrl}
+                          alt={product.name}
+                          referrerPolicy="no-referrer"
+                          className="w-full h-full object-cover group-hover/cardimg:scale-105 transition-transform duration-200"
+                        />
+                      </button>
+                    ) : (
+                      <div className="w-14 h-14 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 flex items-center justify-center text-slate-400 shrink-0">
+                        <Package className="w-6 h-6 opacity-60" />
+                      </div>
+                    )}
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-1">
+                        <span className="font-mono text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                          {product.code}
+                        </span>
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold border shrink-0 ${status.bg} ${status.color} ${status.border}`}
+                        >
+                          {status.label}
+                        </span>
+                      </div>
+                      <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100 line-clamp-1 mt-0.5">
                         {product.name}
                       </h3>
+                      {product.barcode && (
+                        <div className="text-[10px] text-slate-400 flex items-center gap-1 font-mono">
+                          <Barcode className="w-3 h-3" /> {product.barcode}
+                        </div>
+                      )}
                     </div>
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold border shrink-0 ${status.bg} ${status.color} ${status.border}`}
-                    >
-                      {status.label}
-                    </span>
                   </div>
 
-                  <div className="flex items-center gap-2 mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  <div className="flex items-center gap-2 mt-2 text-xs text-slate-500 dark:text-slate-400">
                     <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[10px] font-medium">
                       {product.category}
                     </span>
@@ -762,6 +827,44 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Product Image Lightbox Modal */}
+      {previewImage && (
+        <div
+          id="product-image-lightbox"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200"
+          onClick={() => setPreviewImage(null)}
+        >
+          <div
+            className="relative max-w-lg w-full bg-white dark:bg-slate-900 rounded-3xl overflow-hidden shadow-2xl border border-slate-700"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                  {previewImage.name}
+                </h3>
+                <p className="text-[11px] font-mono text-slate-400">{previewImage.code}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewImage(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-100 rounded-lg hover:bg-slate-800 transition-colors"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 flex items-center justify-center bg-slate-950">
+              <img
+                src={previewImage.url}
+                alt={previewImage.name}
+                referrerPolicy="no-referrer"
+                className="max-h-[60vh] max-w-full rounded-2xl object-contain shadow-md"
+              />
+            </div>
+          </div>
         </div>
       )}
 

@@ -24,6 +24,7 @@ interface DBStructure {
     barcode?: string;
     name: string;
     description?: string;
+    imageUrl?: string;
     category: string;
     unit: string;
     currentStock: number;
@@ -313,6 +314,7 @@ app.post('/api/products', (req, res) => {
     barcode,
     name,
     description,
+    imageUrl,
     category,
     unit,
     initialStock,
@@ -344,6 +346,7 @@ app.post('/api/products', (req, res) => {
     barcode: barcode?.trim() || undefined,
     name: name.trim(),
     description: description?.trim() || '',
+    imageUrl: imageUrl?.trim() || undefined,
     category: category.trim(),
     unit: (unit || 'UN').toUpperCase(),
     currentStock: initialQty,

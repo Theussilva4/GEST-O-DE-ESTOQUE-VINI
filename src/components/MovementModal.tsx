@@ -335,16 +335,35 @@ export const MovementModal: React.FC<MovementModalProps> = ({
 
               {/* Selected Product Card Summary */}
               {currentProduct && (
-                <div className="mt-2.5 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 flex flex-wrap items-center justify-between gap-2 text-xs">
-                  <div className="flex items-center gap-2">
-                    <Package className="w-4 h-4 text-slate-400" />
+                <div className="mt-2.5 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 flex flex-wrap items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-3">
+                    {currentProduct.imageUrl ? (
+                      <img
+                        src={currentProduct.imageUrl}
+                        alt={currentProduct.name}
+                        referrerPolicy="no-referrer"
+                        className="w-10 h-10 rounded-lg object-cover border border-slate-200 dark:border-slate-700 shrink-0 bg-white"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-lg bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-400 shrink-0">
+                        <Package className="w-5 h-5" />
+                      </div>
+                    )}
                     <div>
-                      <span className="font-semibold text-slate-800 dark:text-slate-200">
+                      <div className="font-semibold text-slate-800 dark:text-slate-200 text-sm">
                         {currentProduct.name}
-                      </span>
-                      <span className="text-slate-400 ml-1.5">
-                        ({currentProduct.category} | {currentProduct.location || 'Sem localização'})
-                      </span>
+                      </div>
+                      <div className="text-slate-400 text-[11px] flex items-center gap-1.5 mt-0.5">
+                        <span className="font-mono">{currentProduct.code}</span>
+                        <span>•</span>
+                        <span>{currentProduct.category}</span>
+                        {currentProduct.location && (
+                          <>
+                            <span>•</span>
+                            <span>{currentProduct.location}</span>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">

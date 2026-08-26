@@ -26,6 +26,7 @@ export interface Product {
   barcode?: string;
   name: string;
   description?: string;
+  imageUrl?: string; // Product photo (base64 or URL)
   category: string;
   unit: ProductUnit;
   currentStock: number;
