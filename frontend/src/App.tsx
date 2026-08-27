@@ -38,7 +38,14 @@ export default function App() {
       return null;
     }
   });
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(() => {
+    try {
+      const stored = localStorage.getItem(USER_STORAGE_KEY);
+      return !stored;
+    } catch {
+      return true;
+    }
+  });
   const [isUsersModalOpen, setIsUsersModalOpen] = useState(false);
   const [isAreasModalOpen, setIsAreasModalOpen] = useState(false);
 
