@@ -20,6 +20,19 @@ function hashPassword(password: string): string {
   return crypto.createHash('sha256').update(password + '_industrial_mro_salt_2026').digest('hex');
 }
 
+const mapUser = (u: any) => ({
+  id: u.codusuario,
+  name: u.nome,
+  username: u.username,
+  email: u.email,
+  role: u.role,
+  active: u.ativo,
+  avatarColor: u.cor_avatar,
+  department: u.departamento,
+  createdAt: u.data_criacao,
+  lastLogin: u.ultimo_login
+});
+
 // ---------------------------------------------
 // ENDPOINTS GERAIS
 // ---------------------------------------------
@@ -36,7 +49,7 @@ app.get('/api/inventory', async (req, res) => {
     res.json({
       produtos: produtos.map(p => ({ ...p, categoria_nome: p.categoria?.nome, fornecedor_nome: p.fornecedor?.nome_fantasia })),
       movimentacoes: movimentacoes.map(m => ({ ...m, produto_nome: m.produto?.nome, produto_codigo: m.produto?.codigo_interno })),
-      users: usuarios, // O frontend novo espera "users"
+      users: usuarios.map(mapUser), // mapped to frontend expected keys
       areas,
       workOrders
     });
@@ -64,8 +77,8 @@ app.post('/api/auth/login', async (req, res) => {
 
   await prisma.usuarios.update({ where: { codusuario: user.codusuario }, data: { ultimo_login: new Date() } });
   
-  const { senha_hash, ...safeUser } = user;
-  res.json({ success: true, user: safeUser, token: `auth-token-${user.codusuario}-${Date.now()}` });
+  const mappedUser = mapUser(user);
+  res.json({ success: true, user: mappedUser, token: `auth-token-${user.codusuario}-${Date.now()}` });
 });
 
 app.post('/api/auth/register', async (req, res) => {
@@ -91,8 +104,8 @@ app.post('/api/auth/register', async (req, res) => {
     }
   });
 
-  const { senha_hash, ...safeUser } = newUser;
-  res.status(201).json({ success: true, user: safeUser, token: `auth-token-${newUser.codusuario}-${Date.now()}` });
+  const mappedUser = mapUser(newUser);
+  res.status(201).json({ success: true, user: mappedUser, token: `auth-token-${newUser.codusuario}-${Date.now()}` });
 });
 
 app.listen(PORT, '0.0.0.0', () => {
