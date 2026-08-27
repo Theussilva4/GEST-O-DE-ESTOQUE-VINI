@@ -80,8 +80,8 @@ app.get('/api/inventory', async (req, res) => {
     const workOrders = await prisma.ordens_servico.findMany({ include: { itens: { include: { produto: true } } }, orderBy: { data_criacao: 'desc' }});
 
     res.json({
-      products: produtos.map(p => ({ ...p, id: p.codproduto, categoria_nome: p.categoria?.nome, fornecedor_nome: p.fornecedor?.nome_fantasia })),
-      movements: movimentacoes.map(m => ({ ...m, id: m.codmovimentacao, produto_nome: m.produto?.nome, produto_codigo: m.produto?.codigo_interno })),
+      products: produtos.map(p => ({ ...p, id: p.codproduto, name: p.nome, code: p.codigo_interno, barcode: p.codigo_barras, description: p.descricao, category: p.categoria?.nome, categoria_nome: p.categoria?.nome, fornecedor_nome: p.fornecedor?.nome_fantasia })),
+      movements: movimentacoes.map(m => ({ ...m, id: m.codmovimentacao, type: m.tipo_movimentacao === 'ENTRADA' ? 'IN' : m.tipo_movimentacao === 'SAIDA' ? 'OUT' : 'ADJUST', quantity: m.quantidade, reason: m.motivo_descricao, nome: m.produto?.nome, codigo_interno: m.produto?.codigo_interno, codusuario: m.usuario?.nome || 'Sistema', produto_nome: m.produto?.nome, produto_codigo: m.produto?.codigo_interno })),
       users: usuarios.map(mapUser),
       areas: areas.map(a => ({ ...a, id: a.codarea })),
       workOrders: workOrders.map(w => ({ ...w, id: w.codordem }))
@@ -152,7 +152,7 @@ app.post('/api/products', async (req, res) => {
     }
 
     const productWithRelations = await prisma.produtos.findUnique({ where: { codproduto: newProduct.codproduto }, include: { categoria: true, fornecedor: true } });
-    res.status(201).json({ ...productWithRelations, id: productWithRelations?.codproduto, categoria_nome: productWithRelations?.categoria?.nome, fornecedor_nome: productWithRelations?.fornecedor?.nome_fantasia });
+    res.status(201).json({ ...productWithRelations, id: productWithRelations?.codproduto, name: productWithRelations?.nome, code: productWithRelations?.codigo_interno, barcode: productWithRelations?.codigo_barras, description: productWithRelations?.descricao, category: productWithRelations?.categoria?.nome, categoria_nome: productWithRelations?.categoria?.nome, fornecedor_nome: productWithRelations?.fornecedor?.nome_fantasia });
   } catch (error: any) {
     res.status(400).json({ error: error.message || 'Erro ao criar produto.' });
   }
@@ -186,7 +186,7 @@ app.put('/api/products/:id', async (req, res) => {
       },
       include: { categoria: true, fornecedor: true }
     });
-    res.json({ ...updated, id: updated.codproduto, categoria_nome: updated.categoria?.nome, fornecedor_nome: updated.fornecedor?.nome_fantasia });
+    res.json({ ...updated, id: updated.codproduto, name: updated.nome, code: updated.codigo_interno, barcode: updated.codigo_barras, description: updated.descricao, category: updated.categoria?.nome, categoria_nome: updated.categoria?.nome, fornecedor_nome: updated.fornecedor?.nome_fantasia });
   } catch (error) {
     res.status(404).json({ error: 'Produto nÃ£o encontrado.' });
   }
