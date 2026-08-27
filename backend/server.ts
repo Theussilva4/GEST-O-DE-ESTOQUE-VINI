@@ -171,8 +171,8 @@ app.get('/api/inventory', async (req, res) => {
     const workOrders = await prisma.ordens_servico.findMany({ include: { itens: { include: { produto: true } } }, orderBy: { data_criacao: 'desc' }});
 
     res.json({
-      produtos: produtos.map(mapProduct),
-      movimentacoes: movimentacoes.map(mapMovement),
+      products: produtos.map(mapProduct),
+      movements: movimentacoes.map(mapMovement),
       users: usuarios.map(mapUser),
       areas: areas.map(mapArea),
       workOrders: workOrders.map(mapWorkOrder)
