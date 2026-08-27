@@ -93,7 +93,7 @@ export const WorkOrderGeneratorModal: React.FC<WorkOrderGeneratorModalProps> = (
 
   const fetchNextNumber = async () => {
     try {
-      const res = await fetch('/api/work-orders/next-number');
+      const res = await fetch((import.meta.env.VITE_API_URL || '') + '/api/work-orders/next-number');
       if (res.ok) {
         const data = await res.json();
         if (data.nextNumber) {
@@ -236,7 +236,7 @@ export const WorkOrderGeneratorModal: React.FC<WorkOrderGeneratorModalProps> = (
         })),
       };
 
-      const res = await fetch('/api/work-orders', {
+      const res = await fetch((import.meta.env.VITE_API_URL || '') + '/api/work-orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

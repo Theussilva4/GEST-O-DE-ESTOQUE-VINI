@@ -83,7 +83,7 @@ export const Header: React.FC<HeaderProps> = ({
                   Online
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 hidden xs:block">
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 hidden sm:block">
                 Saneamento, Água & Manutenção Operacional
               </p>
             </div>
@@ -96,7 +96,7 @@ export const Header: React.FC<HeaderProps> = ({
               type="button"
               onClick={onOpenBackup}
               title="Backup e Dados do Sistema"
-              className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-colors flex items-center gap-1.5 text-xs font-semibold"
+              className="hidden sm:flex p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-colors items-center gap-1.5 text-xs font-semibold"
             >
               <Database className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               <span className="hidden xl:inline">Backup</span>
@@ -107,7 +107,7 @@ export const Header: React.FC<HeaderProps> = ({
               id="header-gerar-os-btn"
               type="button"
               onClick={onOpenWorkOrderGenerator}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/60 dark:text-indigo-300 text-xs font-bold border border-indigo-200/80 dark:border-indigo-800 transition-all cursor-pointer"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/60 dark:text-indigo-300 text-xs font-bold border border-indigo-200/80 dark:border-indigo-800 transition-all cursor-pointer"
             >
               <FileText className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
               <span>Gerar O.S. (PDF)</span>
@@ -127,10 +127,10 @@ export const Header: React.FC<HeaderProps> = ({
               id="header-new-product-btn"
               type="button"
               onClick={onNewProduct}
-              className="flex items-center gap-1.5 px-3 sm:px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold rounded-xl shadow-md shadow-emerald-600/20 transition-all"
+              className="flex items-center justify-center gap-1.5 w-8 h-8 sm:w-auto sm:h-auto sm:px-3.5 sm:py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold rounded-xl shadow-md shadow-emerald-600/20 transition-all"
             >
-              <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">Cadastrar</span> Item
+              <Plus className="w-4 h-4 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Cadastrar Item</span>
             </button>
 
             {/* Active User Avatar & Menu */}

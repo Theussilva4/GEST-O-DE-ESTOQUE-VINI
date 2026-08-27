@@ -159,7 +159,7 @@ export const AreasManagementModal: React.FC<AreasManagementModalProps> = ({
     try {
       if (isEditing && editingId) {
         // Update Area
-        const res = await fetch(`/api/areas/${editingId}`, {
+        const res = await fetch((import.meta.env.VITE_API_URL || '') + `/api/areas/${editingId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -178,7 +178,7 @@ export const AreasManagementModal: React.FC<AreasManagementModalProps> = ({
         resetForm();
       } else {
         // Create Area
-        const res = await fetch('/api/areas', {
+        const res = await fetch((import.meta.env.VITE_API_URL || '') + '/api/areas', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -205,7 +205,7 @@ export const AreasManagementModal: React.FC<AreasManagementModalProps> = ({
 
   const handleDelete = async (id: string, areaName: string) => {
     try {
-      const res = await fetch(`/api/areas/${id}`, { method: 'DELETE' });
+      const res = await fetch((import.meta.env.VITE_API_URL || '') + `/api/areas/${id}`, { method: 'DELETE' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erro ao remover local.');
 

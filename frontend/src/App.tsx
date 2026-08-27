@@ -97,7 +97,7 @@ export default function App() {
   const loadInventory = useCallback(async () => {
     try {
       setIsLoading(true);
-      const res = await fetch('/api/inventory');
+      const res = await fetch((import.meta.env.VITE_API_URL || '') + '/api/inventory');
       if (!res.ok) throw new Error('Falha ao conectar com o servidor.');
       const data = await res.json();
       setProducts(data.products || []);
@@ -177,7 +177,7 @@ export default function App() {
     }
   ) => {
     try {
-      const res = await fetch(`/api/work-orders/${workOrderId}/return`, {
+      const res = await fetch((import.meta.env.VITE_API_URL || '') + `/api/work-orders/${workOrderId}/return`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(returnData),
@@ -202,7 +202,7 @@ export default function App() {
     try {
       if (productToEdit) {
         // PUT update
-        const res = await fetch(`/api/products/${productToEdit.id}`, {
+        const res = await fetch((import.meta.env.VITE_API_URL || '') + `/api/products/${productToEdit.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(formData),
@@ -216,7 +216,7 @@ export default function App() {
         showToast('Produto atualizado com sucesso!', 'success');
       } else {
         // POST create
-        const res = await fetch('/api/products', {
+        const res = await fetch((import.meta.env.VITE_API_URL || '') + '/api/products', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(formData),
@@ -270,7 +270,7 @@ export default function App() {
 
   const handleDeleteProduct = async (codproduto: string) => {
     try {
-      const res = await fetch(`/api/products/${codproduto}`, { method: 'DELETE' });
+      const res = await fetch((import.meta.env.VITE_API_URL || '') + `/api/products/${codproduto}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Erro ao excluir no servidor.');
       setProducts((prev) => prev.filter((p) => p.id !== codproduto));
       showToast('Produto excluído com sucesso!', 'success');
@@ -283,7 +283,7 @@ export default function App() {
   // Movimentacao handler (Entry / Exit)
   const handleSaveMovement = async (movementData: any) => {
     try {
-      const res = await fetch('/api/movements', {
+      const res = await fetch((import.meta.env.VITE_API_URL || '') + '/api/movements', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(movementData),
@@ -344,7 +344,7 @@ export default function App() {
 
   const handleDeleteMovement = async (movementId: string) => {
     try {
-      const res = await fetch(`/api/movements/${movementId}`, { method: 'DELETE' });
+      const res = await fetch((import.meta.env.VITE_API_URL || '') + `/api/movements/${movementId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Erro ao estornar movimentação.');
       const data = await res.json();
       if (data.products) setProducts(data.products);
@@ -362,7 +362,7 @@ export default function App() {
     codusuario: string
   ) => {
     try {
-      const res = await fetch('/api/inventory/reconcile', {
+      const res = await fetch((import.meta.env.VITE_API_URL || '') + '/api/inventory/reconcile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ audits, codusuario }),
@@ -390,7 +390,7 @@ export default function App() {
   // Backup Import & Reset
   const handleImportBackup = async (data: { products: Produto[]; movements: Movimentacao[] }) => {
     try {
-      const res = await fetch('/api/backup', {
+      const res = await fetch((import.meta.env.VITE_API_URL || '') + '/api/backup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -408,7 +408,7 @@ export default function App() {
 
   const handleResetSample = async () => {
     try {
-      const res = await fetch('/api/inventory/reset-sample', { method: 'POST' });
+      const res = await fetch((import.meta.env.VITE_API_URL || '') + '/api/inventory/reset-sample', { method: 'POST' });
       if (!res.ok) throw new Error('Falha ao resetar no servidor.');
       const data = await res.json();
       setProducts([]);

@@ -56,7 +56,9 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   const [selectedStatus, setSelectedStatus] = useState<'ALL' | 'low' | 'out' | 'normal'>('ALL');
   const [sortBy, setSortBy] = useState<'name' | 'stock' | 'value' | 'code' | 'criticidade'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
+  const [viewMode, setViewMode] = useState<'table' | 'cards'>(() => {
+    return typeof window !== 'undefined' && window.innerWidth < 768 ? 'cards' : 'table';
+  });
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Produto | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);

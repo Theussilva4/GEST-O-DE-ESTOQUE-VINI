@@ -67,7 +67,7 @@ export const UsersManagementModal: React.FC<UsersManagementModalProps> = ({
   const fetchUsers = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/users');
+      const res = await fetch((import.meta.env.VITE_API_URL || '') + '/api/users');
       const data = await res.json();
       if (res.ok && data.users) {
         setUsers(data.users);
@@ -181,7 +181,7 @@ export const UsersManagementModal: React.FC<UsersManagementModalProps> = ({
   const handleDeleteUser = async () => {
     if (!userToDelete) return;
     try {
-      const res = await fetch(`/api/users/${userToDelete.id}`, {
+      const res = await fetch((import.meta.env.VITE_API_URL || '') + `/api/users/${userToDelete.id}`, {
         method: 'DELETE',
       });
       const data = await res.json();
