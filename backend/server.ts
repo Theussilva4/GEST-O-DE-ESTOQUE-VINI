@@ -10,6 +10,34 @@ import { Prisma } from '@prisma/client';
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+const sanitizeJSON = (obj: any): any => {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj === 'object') {
+    if (typeof obj.toNumber === 'function') return obj.toNumber();
+    if (obj instanceof Date) return obj;
+    if (Array.isArray(obj)) return obj.map(sanitizeJSON);
+    const res: any = {};
+    for (const key of Object.keys(obj)) {
+      if (['estoque_atual', 'estoque_minimo', 'estoque_maximo', 'preco_custo', 'preco_venda', 'quantidade', 'estoque_anterior', 'estoque_novo', 'preco_unitario', 'preco_total', 'quantidade_pedida', 'quantidade_baixada', 'quantidade_devolvida', 'custo_total', 'quantidade_total'].includes(key) && obj[key] !== null) {
+        res[key] = Number(obj[key]);
+      } else {
+        res[key] = sanitizeJSON(obj[key]);
+      }
+    }
+    return res;
+  }
+  return obj;
+};
+
+// Intercept all JSON responses to cast Decimals to Numbers
+app.use((req, res, next) => {
+  const originalJson = res.json;
+  res.json = function(obj) {
+    return originalJson.call(this, sanitizeJSON(obj));
+  };
+  next();
+});
+
 // CORS
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
