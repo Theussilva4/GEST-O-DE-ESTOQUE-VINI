@@ -21,18 +21,18 @@ import {
   Tag,
   Wrench,
 } from 'lucide-react';
-import { Product, ProductUnit, MaintenanceCriticality } from '../types';
+import { Produto, UnidadeProduto, CriticidadeManutencao } from '../types';
 import { BarcodeScannerModal } from './BarcodeScannerModal';
 
 interface ProductFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (productData: any) => Promise<void>;
-  productToEdit?: Product | null;
+  productToEdit?: Produto | null;
   existingCategories: string[];
 }
 
-const COMMON_UNITS: { value: ProductUnit; label: string }[] = [
+const COMMON_UNITS: { value: UnidadeProduto; label: string }[] = [
   { value: 'UN', label: 'Unidade (UN)' },
   { value: 'PAR', label: 'Par (PAR)' },
   { value: 'KIT', label: 'Kit / Conjunto (KIT)' },
@@ -119,19 +119,19 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     barcode: '',
     name: '',
     description: '',
-    imageUrl: '',
-    category: '',
-    unit: 'UN' as ProductUnit,
-    equipmentTag: '',
-    criticality: 'LOW' as MaintenanceCriticality,
+    url_imagem: '',
+    codcategoria: '',
+    unidade_medida: 'UN' as UnidadeProduto,
+    tag_equipamento: '',
+    criticidade: 'LOW' as CriticidadeManutencao,
     initialStock: '0',
-    minStock: '2',
-    maxStock: '',
-    costPrice: '',
-    sellingPrice: '',
-    supplier: '',
-    location: '',
-    responsible: 'Almoxarife / PCM',
+    estoque_minimo: '2',
+    estoque_maximo: '',
+    preco_custo: '',
+    preco_venda: '',
+    codfornecedor: '',
+    localizacao_estoque: '',
+    codusuario: 'Almoxarife / PCM',
   });
 
   const [isScannerOpen, setIsScannerOpen] = useState(false);
@@ -151,40 +151,40 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         barcode: productToEdit.barcode || '',
         name: productToEdit.name,
         description: productToEdit.description || '',
-        imageUrl: productToEdit.imageUrl || '',
-        category: productToEdit.category,
-        unit: productToEdit.unit,
-        equipmentTag: productToEdit.equipmentTag || '',
-        criticality: productToEdit.criticality || 'LOW',
-        initialStock: String(productToEdit.currentStock),
-        minStock: String(productToEdit.minStock),
-        maxStock: productToEdit.maxStock ? String(productToEdit.maxStock) : '',
-        costPrice: String(productToEdit.costPrice || ''),
-        sellingPrice: String(productToEdit.sellingPrice || productToEdit.costPrice || ''),
-        supplier: productToEdit.supplier || '',
-        location: productToEdit.location || '',
-        responsible: 'Almoxarife / PCM',
+        url_imagem: productToEdit.url_imagem || '',
+        codcategoria: productToEdit.codcategoria,
+        unidade_medida: productToEdit.unidade_medida,
+        tag_equipamento: productToEdit.tag_equipamento || '',
+        criticidade: productToEdit.criticidade || 'LOW',
+        initialStock: String(productToEdit.estoque_atual),
+        estoque_minimo: String(productToEdit.estoque_minimo),
+        estoque_maximo: productToEdit.estoque_maximo ? String(productToEdit.estoque_maximo) : '',
+        preco_custo: String(productToEdit.preco_custo || ''),
+        preco_venda: String(productToEdit.preco_venda || productToEdit.preco_custo || ''),
+        codfornecedor: productToEdit.codfornecedor || '',
+        localizacao_estoque: productToEdit.localizacao_estoque || '',
+        codusuario: 'Almoxarife / PCM',
       });
-      setShowUrlInput(Boolean(productToEdit.imageUrl && productToEdit.imageUrl.startsWith('http')));
+      setShowUrlInput(Boolean(productToEdit.url_imagem && productToEdit.url_imagem.startsWith('http')));
     } else {
       setFormData({
         code: '',
         barcode: '',
         name: '',
         description: '',
-        imageUrl: '',
-        category: '',
-        unit: 'UN',
-        equipmentTag: '',
-        criticality: 'LOW',
+        url_imagem: '',
+        codcategoria: '',
+        unidade_medida: 'UN',
+        tag_equipamento: '',
+        criticidade: 'LOW',
         initialStock: '0',
-        minStock: '2',
-        maxStock: '',
-        costPrice: '',
-        sellingPrice: '',
-        supplier: '',
-        location: '',
-        responsible: 'Almoxarife / PCM',
+        estoque_minimo: '2',
+        estoque_maximo: '',
+        preco_custo: '',
+        preco_venda: '',
+        codfornecedor: '',
+        localizacao_estoque: '',
+        codusuario: 'Almoxarife / PCM',
       });
       setShowUrlInput(false);
     }
@@ -208,7 +208,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setIsUploadingImage(true);
       setErrorMsg(null);
       const base64 = await compressImageFile(file, 800, 800, 0.82);
-      setFormData((prev) => ({ ...prev, imageUrl: base64 }));
+      setFormData((prev) => ({ ...prev, url_imagem: base64 }));
     } catch (err) {
       console.error('Error compressing image:', err);
       setErrorMsg('Falha ao processar imagem.');
@@ -219,7 +219,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   };
 
   const handleRemoveImage = () => {
-    setFormData((prev) => ({ ...prev, imageUrl: '' }));
+    setFormData((prev) => ({ ...prev, url_imagem: '' }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -228,7 +228,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setErrorMsg('A descrição / nome do sobressalente é obrigatório.');
       return;
     }
-    if (!formData.category.trim()) {
+    if (!formData.codcategoria.trim()) {
       setErrorMsg('A categoria de manutenção é obrigatória.');
       return;
     }
@@ -236,17 +236,17 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     try {
       setIsSubmitting(true);
       setErrorMsg(null);
-      const unitCost = parseFloat(formData.costPrice) || 0;
+      const unitCost = parseFloat(formData.preco_custo) || 0;
       await onSave({
         ...formData,
-        imageUrl: formData.imageUrl.trim() || undefined,
-        equipmentTag: formData.equipmentTag.trim() || undefined,
-        criticality: formData.criticality,
+        url_imagem: formData.url_imagem.trim() || undefined,
+        tag_equipamento: formData.tag_equipamento.trim() || undefined,
+        criticidade: formData.criticidade,
         initialStock: parseFloat(formData.initialStock) || 0,
-        minStock: parseFloat(formData.minStock) || 0,
-        maxStock: formData.maxStock ? parseFloat(formData.maxStock) : undefined,
-        costPrice: unitCost,
-        sellingPrice: formData.sellingPrice ? parseFloat(formData.sellingPrice) : unitCost,
+        estoque_minimo: parseFloat(formData.estoque_minimo) || 0,
+        estoque_maximo: formData.estoque_maximo ? parseFloat(formData.estoque_maximo) : undefined,
+        preco_custo: unitCost,
+        preco_venda: formData.preco_venda ? parseFloat(formData.preco_venda) : unitCost,
       });
       onClose();
     } catch (err: any) {
@@ -333,10 +333,10 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
                 {/* Photo Preview Box */}
                 <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-xl bg-white dark:bg-slate-800 border-2 border-dashed border-slate-300 dark:border-slate-600 flex items-center justify-center overflow-hidden shrink-0 shadow-inner group">
-                  {formData.imageUrl ? (
+                  {formData.url_imagem ? (
                     <>
                       <img
-                        src={formData.imageUrl}
+                        src={formData.url_imagem}
                         alt="Foto da peça"
                         referrerPolicy="no-referrer"
                         className="w-full h-full object-cover"
@@ -405,8 +405,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                       <input
                         type="url"
                         placeholder="https://exemplo.com/foto-peca.jpg"
-                        value={formData.imageUrl}
-                        onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+                        value={formData.url_imagem}
+                        onChange={(e) => setFormData({ ...formData, url_imagem: e.target.value })}
                         className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-emerald-500"
                       />
                     </div>
@@ -487,16 +487,16 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                     Categoria de Manutenção *
                   </label>
                   <input
-                    id="product-category-input"
+                    id="product-codcategoria-input"
                     type="text"
                     required
-                    list="maintenance-category-suggestions"
+                    list="maintenance-codcategoria-suggestions"
                     placeholder="Selecione ou digite..."
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                    value={formData.codcategoria}
+                    onChange={(e) => setFormData({ ...formData, codcategoria: e.target.value })}
                     className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 focus:bg-white dark:focus:bg-slate-800 transition-all"
                   />
-                  <datalist id="maintenance-category-suggestions">
+                  <datalist id="maintenance-codcategoria-suggestions">
                     {allCategories.map((cat) => (
                       <option key={cat} value={cat} />
                     ))}
@@ -508,10 +508,10 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                     Unidade de Medida *
                   </label>
                   <select
-                    id="product-unit-select"
-                    value={formData.unit}
+                    id="product-unidade_medida-select"
+                    value={formData.unidade_medida}
                     onChange={(e) =>
-                      setFormData({ ...formData, unit: e.target.value as ProductUnit })
+                      setFormData({ ...formData, unidade_medida: e.target.value as UnidadeProduto })
                     }
                     className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500 focus:bg-white dark:focus:bg-slate-800 transition-all"
                   >
@@ -541,8 +541,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                       id="product-equipment-tag-input"
                       type="text"
                       placeholder="Ex: PRE-HY-02 / RED-04 / Linha 01"
-                      value={formData.equipmentTag}
-                      onChange={(e) => setFormData({ ...formData, equipmentTag: e.target.value })}
+                      value={formData.tag_equipamento}
+                      onChange={(e) => setFormData({ ...formData, tag_equipamento: e.target.value })}
                       className="w-full pl-9 pr-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 transition-all"
                     />
                   </div>
@@ -556,10 +556,10 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                     Criticidade da Peça na Planta *
                   </label>
                   <select
-                    id="product-criticality-select"
-                    value={formData.criticality}
+                    id="product-criticidade-select"
+                    value={formData.criticidade}
                     onChange={(e) =>
-                      setFormData({ ...formData, criticality: e.target.value as MaintenanceCriticality })
+                      setFormData({ ...formData, criticidade: e.target.value as CriticidadeManutencao })
                     }
                     className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500 transition-all font-medium"
                   >
@@ -583,7 +583,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 {!isEditing && (
                   <div>
                     <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                      Estoque Físico Inicial ({formData.unit})
+                      Estoque Físico Inicial ({formData.unidade_medida})
                     </label>
                     <input
                       id="product-initial-stock-input"
@@ -612,8 +612,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                     step="any"
                     required
                     placeholder="2"
-                    value={formData.minStock}
-                    onChange={(e) => setFormData({ ...formData, minStock: e.target.value })}
+                    value={formData.estoque_minimo}
+                    onChange={(e) => setFormData({ ...formData, estoque_minimo: e.target.value })}
                     className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500 transition-all font-semibold"
                   />
                   <span className="text-[10px] text-slate-400 block mt-0.5">
@@ -631,8 +631,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                     min="0"
                     step="any"
                     placeholder="10"
-                    value={formData.maxStock}
-                    onChange={(e) => setFormData({ ...formData, maxStock: e.target.value })}
+                    value={formData.estoque_maximo}
+                    onChange={(e) => setFormData({ ...formData, estoque_maximo: e.target.value })}
                     className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500 transition-all"
                   />
                   <span className="text-[10px] text-slate-400 block mt-0.5">
@@ -662,8 +662,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                       min="0"
                       step="0.01"
                       placeholder="0,00"
-                      value={formData.costPrice}
-                      onChange={(e) => setFormData({ ...formData, costPrice: e.target.value })}
+                      value={formData.preco_custo}
+                      onChange={(e) => setFormData({ ...formData, preco_custo: e.target.value })}
                       className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500 transition-all"
                     />
                   </div>
@@ -679,11 +679,11 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                   <div className="relative">
                     <Building2 className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
-                      id="product-supplier-input"
+                      id="product-codfornecedor-input"
                       type="text"
                       placeholder="Ex: SKF, Festo, Siemens, Mobil, WEG"
-                      value={formData.supplier}
-                      onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
+                      value={formData.codfornecedor}
+                      onChange={(e) => setFormData({ ...formData, codfornecedor: e.target.value })}
                       className="w-full pl-9 pr-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 transition-all"
                     />
                   </div>
@@ -704,11 +704,11 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                   <div className="relative">
                     <MapPin className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
-                      id="product-location-input"
+                      id="product-localizacao_estoque-input"
                       type="text"
                       placeholder="Ex: Prateleira B-04 / Gaveteiro M-02 / Bacia de Contenção Q-01"
-                      value={formData.location}
-                      onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                      value={formData.localizacao_estoque}
+                      onChange={(e) => setFormData({ ...formData, localizacao_estoque: e.target.value })}
                       className="w-full pl-9 pr-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 transition-all"
                     />
                   </div>

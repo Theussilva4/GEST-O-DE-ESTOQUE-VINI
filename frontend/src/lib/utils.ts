@@ -1,4 +1,4 @@
-import { Product, Movement, MaintenanceCriticality } from '../types';
+import { Produto, Movimentacao, CriticidadeManutencao } from '../types';
 
 export function formatCurrency(value: number): string {
   return new Intl.NumberFormat('pt-BR', {
@@ -40,14 +40,14 @@ export function formatDateShort(dateString: string): string {
   }
 }
 
-export function getStockStatus(product: Product): {
+export function getStockStatus(product: Produto): {
   label: string;
   color: string;
   bg: string;
   border: string;
   status: 'out' | 'low' | 'normal' | 'excess';
 } {
-  if (product.currentStock <= 0) {
+  if (product.estoque_atual <= 0) {
     return {
       label: 'Esgotado',
       color: 'text-red-700 dark:text-red-300',
@@ -56,7 +56,7 @@ export function getStockStatus(product: Product): {
       status: 'out',
     };
   }
-  if (product.currentStock <= product.minStock) {
+  if (product.estoque_atual <= product.estoque_minimo) {
     return {
       label: 'Estoque Baixo',
       color: 'text-amber-700 dark:text-amber-300',
@@ -65,7 +65,7 @@ export function getStockStatus(product: Product): {
       status: 'low',
     };
   }
-  if (product.maxStock && product.currentStock > product.maxStock) {
+  if (product.estoque_maximo && product.estoque_atual > product.estoque_maximo) {
     return {
       label: 'Excesso',
       color: 'text-blue-700 dark:text-blue-300',
@@ -83,14 +83,14 @@ export function getStockStatus(product: Product): {
   };
 }
 
-export function getCriticalityInfo(criticality?: MaintenanceCriticality): {
+export function getCriticalityInfo(criticidade?: CriticidadeManutencao): {
   label: string;
   shortLabel: string;
   color: string;
   bg: string;
   border: string;
 } {
-  switch (criticality) {
+  switch (criticidade) {
     case 'HIGH':
       return {
         label: 'Alta - Peça Crítica (Parada de Fábrica)',

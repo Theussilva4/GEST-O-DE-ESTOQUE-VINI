@@ -15,7 +15,7 @@ import {
   Tag,
   Wrench,
 } from 'lucide-react';
-import { Product, MovementType, EntryReason, ExitReason } from '../types';
+import { Produto, TipoMovimentacao, EntryReason, ExitReason } from '../types';
 import { formatCurrency, getStockStatus } from '../lib/utils';
 import { BarcodeScannerModal } from './BarcodeScannerModal';
 
@@ -23,9 +23,9 @@ interface MovementModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (movementData: any) => Promise<void>;
-  products: Product[];
-  initialType?: MovementType;
-  preselectedProduct?: Product | null;
+  products: Produto[];
+  initialType?: TipoMovimentacao;
+  preselectedProduct?: Produto | null;
 }
 
 const ENTRY_REASONS: EntryReason[] = [
@@ -58,16 +58,16 @@ export const MovementModal: React.FC<MovementModalProps> = ({
   initialType = 'IN',
   preselectedProduct = null,
 }) => {
-  const [type, setType] = useState<MovementType>(initialType);
+  const [type, setType] = useState<TipoMovimentacao>(initialType);
   const [selectedProductId, setSelectedProductId] = useState<string>('');
   const [productSearch, setProductSearch] = useState('');
   const [quantity, setQuantity] = useState('1');
-  const [unitPrice, setUnitPrice] = useState('');
+  const [preco_unitario, setUnitPrice] = useState('');
   const [reason, setReason] = useState('');
-  const [documentNumber, setDocumentNumber] = useState('');
-  const [contactName, setContactName] = useState('');
-  const [responsible, setResponsible] = useState('Almoxarife / Técnico');
-  const [notes, setNotes] = useState('');
+  const [numero_documento, setDocumentNumber] = useState('');
+  const [nome_contato, setContactName] = useState('');
+  const [codusuario, setResponsible] = useState('Almoxarife / Técnico');
+  const [observacoes, setNotes] = useState('');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 16));
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -80,11 +80,11 @@ export const MovementModal: React.FC<MovementModalProps> = ({
       const targetProd = preselectedProduct || (products.length > 0 ? products[0] : null);
       if (targetProd) {
         setSelectedProductId(targetProd.id);
-        setUnitPrice(String(targetProd.costPrice || 0));
+        setUnitPrice(String(targetProd.preco_custo || 0));
         if (initialType === 'IN') {
-          setContactName(targetProd.supplier || '');
+          setContactName(targetProd.codfornecedor || '');
         } else {
-          setContactName(targetProd.equipmentTag ? `TAG: ${targetProd.equipmentTag}` : '');
+          setContactName(targetProd.tag_equipamento ? `TAG: ${targetProd.tag_equipamento}` : '');
         }
       } else {
         setSelectedProductId('');
@@ -106,7 +106,7 @@ export const MovementModal: React.FC<MovementModalProps> = ({
   }, [isOpen, initialType, preselectedProduct, products]);
 
   // When type changes, update default reason and price
-  const handleTypeChange = (newType: MovementType) => {
+  const handleTypeChange = (newType: TipoMovimentacao) => {
     setType(newType);
     setReason(
       newType === 'IN'
@@ -115,22 +115,22 @@ export const MovementModal: React.FC<MovementModalProps> = ({
     );
     const selectedProd = products.find((p) => p.id === selectedProductId);
     if (selectedProd) {
-      setUnitPrice(String(selectedProd.costPrice || 0));
-      if (newType === 'IN' && selectedProd.supplier) {
-        setContactName(selectedProd.supplier);
-      } else if (newType === 'OUT' && selectedProd.equipmentTag) {
-        setContactName(`TAG: ${selectedProd.equipmentTag}`);
+      setUnitPrice(String(selectedProd.preco_custo || 0));
+      if (newType === 'IN' && selectedProd.codfornecedor) {
+        setContactName(selectedProd.codfornecedor);
+      } else if (newType === 'OUT' && selectedProd.tag_equipamento) {
+        setContactName(`TAG: ${selectedProd.tag_equipamento}`);
       }
     }
   };
 
-  const handleProductSelect = (prod: Product) => {
+  const handleProductSelect = (prod: Produto) => {
     setSelectedProductId(prod.id);
-    setUnitPrice(String(prod.costPrice || 0));
-    if (type === 'IN' && prod.supplier) {
-      setContactName(prod.supplier);
-    } else if (type === 'OUT' && prod.equipmentTag) {
-      setContactName(`TAG: ${prod.equipmentTag}`);
+    setUnitPrice(String(prod.preco_custo || 0));
+    if (type === 'IN' && prod.codfornecedor) {
+      setContactName(prod.codfornecedor);
+    } else if (type === 'OUT' && prod.tag_equipamento) {
+      setContactName(`TAG: ${prod.tag_equipamento}`);
     }
   };
 
@@ -154,11 +154,11 @@ export const MovementModal: React.FC<MovementModalProps> = ({
 
   // Calculations
   const qty = parseFloat(quantity) || 0;
-  const price = parseFloat(unitPrice) || 0;
+  const price = parseFloat(preco_unitario) || 0;
   const totalValue = qty * price;
-  const currentStock = currentProduct ? currentProduct.currentStock : 0;
+  const estoque_atual = currentProduct ? currentProduct.estoque_atual : 0;
   const resultingStock =
-    type === 'IN' ? currentStock + qty : currentStock - qty;
+    type === 'IN' ? estoque_atual + qty : estoque_atual - qty;
   const isOverdraft = type === 'OUT' && resultingStock < 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -176,16 +176,16 @@ export const MovementModal: React.FC<MovementModalProps> = ({
       setIsSubmitting(true);
       setErrorMsg(null);
       await onSave({
-        productId: selectedProductId,
+        codproduto: selectedProductId,
         type,
         quantity: qty,
-        unitPrice: price,
+        preco_unitario: price,
         reason,
-        documentNumber: documentNumber.trim() || undefined,
-        contactName: contactName.trim() || undefined,
-        responsible: responsible.trim() || 'Almoxarife / Técnico',
-        notes: notes.trim() || undefined,
-        timestamp: date ? new Date(date).toISOString() : new Date().toISOString(),
+        numero_documento: numero_documento.trim() || undefined,
+        nome_contato: nome_contato.trim() || undefined,
+        codusuario: codusuario.trim() || 'Almoxarife / Técnico',
+        observacoes: observacoes.trim() || undefined,
+        data_movimentacao: date ? new Date(date).toISOString() : new Date().toISOString(),
       });
       onClose();
     } catch (err: any) {
@@ -203,8 +203,8 @@ export const MovementModal: React.FC<MovementModalProps> = ({
       p.name.toLowerCase().includes(q) ||
       p.code.toLowerCase().includes(q) ||
       (p.barcode && p.barcode.toLowerCase().includes(q)) ||
-      (p.equipmentTag && p.equipmentTag.toLowerCase().includes(q)) ||
-      p.category.toLowerCase().includes(q)
+      (p.tag_equipamento && p.tag_equipamento.toLowerCase().includes(q)) ||
+      p.codcategoria.toLowerCase().includes(q)
     );
   });
 
@@ -297,7 +297,7 @@ export const MovementModal: React.FC<MovementModalProps> = ({
               </div>
             )}
 
-            {/* Product Selector */}
+            {/* Produto Selector */}
             <div>
               <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">
                 Peça / Sobressalente *
@@ -340,18 +340,18 @@ export const MovementModal: React.FC<MovementModalProps> = ({
               >
                 {filteredProducts.map((p) => (
                   <option key={p.id} value={p.id}>
-                    [{p.code}] {p.name} {p.equipmentTag ? `(TAG: ${p.equipmentTag})` : ''} - Saldo: {p.currentStock} {p.unit}
+                    [{p.code}] {p.name} {p.tag_equipamento ? `(TAG: ${p.tag_equipamento})` : ''} - Saldo: {p.estoque_atual} {p.unidade_medida}
                   </option>
                 ))}
               </select>
 
-              {/* Selected Product Card Summary */}
+              {/* Selected Produto Card Summary */}
               {currentProduct && (
                 <div className="mt-2.5 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 flex flex-wrap items-center justify-between gap-3 text-xs">
                   <div className="flex items-center gap-3">
-                    {currentProduct.imageUrl ? (
+                    {currentProduct.url_imagem ? (
                       <img
-                        src={currentProduct.imageUrl}
+                        src={currentProduct.url_imagem}
                         alt={currentProduct.name}
                         referrerPolicy="no-referrer"
                         className="w-10 h-10 rounded-lg object-cover border border-slate-200 dark:border-slate-700 shrink-0 bg-white"
@@ -368,18 +368,18 @@ export const MovementModal: React.FC<MovementModalProps> = ({
                       <div className="text-slate-400 text-[11px] flex items-center gap-1.5 mt-0.5">
                         <span className="font-mono">{currentProduct.code}</span>
                         <span>•</span>
-                        <span>{currentProduct.category}</span>
-                        {currentProduct.location && (
+                        <span>{currentProduct.codcategoria}</span>
+                        {currentProduct.localizacao_estoque && (
                           <>
                             <span>•</span>
-                            <span>{currentProduct.location}</span>
+                            <span>{currentProduct.localizacao_estoque}</span>
                           </>
                         )}
-                        {currentProduct.equipmentTag && (
+                        {currentProduct.tag_equipamento && (
                           <>
                             <span>•</span>
                             <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                              TAG: {currentProduct.equipmentTag}
+                              TAG: {currentProduct.tag_equipamento}
                             </span>
                           </>
                         )}
@@ -390,7 +390,7 @@ export const MovementModal: React.FC<MovementModalProps> = ({
                     <div>
                       <span className="text-slate-500 dark:text-slate-400">Saldo Atual:</span>{' '}
                       <span className="font-bold text-slate-900 dark:text-slate-100">
-                        {currentProduct.currentStock} {currentProduct.unit}
+                        {currentProduct.estoque_atual} {currentProduct.unidade_medida}
                       </span>
                     </div>
                     {(() => {
@@ -412,7 +412,7 @@ export const MovementModal: React.FC<MovementModalProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
               <div>
                 <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  Quantidade ({currentProduct?.unit || 'UN'}) *
+                  Quantidade ({currentProduct?.unidade_medida || 'UN'}) *
                 </label>
                 <input
                   id="movement-quantity-input"
@@ -435,11 +435,11 @@ export const MovementModal: React.FC<MovementModalProps> = ({
                     R$
                   </span>
                   <input
-                    id="movement-unit-price-input"
+                    id="movement-unidade_medida-price-input"
                     type="number"
                     min="0"
                     step="0.01"
-                    value={unitPrice}
+                    value={preco_unitario}
                     onChange={(e) => setUnitPrice(e.target.value)}
                     className="w-full pl-9 pr-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500 transition-all"
                   />
@@ -468,8 +468,8 @@ export const MovementModal: React.FC<MovementModalProps> = ({
                 <div className="flex items-center gap-2">
                   <Package className="w-4 h-4" />
                   <span>
-                    Saldo: <strong>{currentStock}</strong> {type === 'IN' ? '+' : '-'} {qty} ={' '}
-                    <strong>{resultingStock}</strong> {currentProduct.unit}
+                    Saldo: <strong>{estoque_atual}</strong> {type === 'IN' ? '+' : '-'} {qty} ={' '}
+                    <strong>{resultingStock}</strong> {currentProduct.unidade_medida}
                   </span>
                 </div>
                 {isOverdraft && (
@@ -514,7 +514,7 @@ export const MovementModal: React.FC<MovementModalProps> = ({
                   id="movement-document-input"
                   type="text"
                   placeholder={type === 'IN' ? 'Ex: NF-10492 ou PED-SKF-89' : 'Ex: OS-2026-089 ou OS-PREV-12'}
-                  value={documentNumber}
+                  value={numero_documento}
                   onChange={(e) => setDocumentNumber(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 transition-all"
                 />
@@ -532,7 +532,7 @@ export const MovementModal: React.FC<MovementModalProps> = ({
                       ? 'Ex: SKF Distribuidora Brasil'
                       : 'Ex: TAG: PRE-HY-02 ou Esteira 01'
                   }
-                  value={contactName}
+                  value={nome_contato}
                   onChange={(e) => setContactName(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 transition-all"
                 />
@@ -545,10 +545,10 @@ export const MovementModal: React.FC<MovementModalProps> = ({
                 <div className="relative">
                   <User className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
-                    id="movement-responsible-input"
+                    id="movement-codusuario-input"
                     type="text"
                     placeholder="Ex: Mecânico André / Carlos"
-                    value={responsible}
+                    value={codusuario}
                     onChange={(e) => setResponsible(e.target.value)}
                     className="w-full pl-9 pr-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 transition-all"
                   />
@@ -576,10 +576,10 @@ export const MovementModal: React.FC<MovementModalProps> = ({
                   Observações Técnicas / Diagnóstico da O.S.
                 </label>
                 <textarea
-                  id="movement-notes-input"
+                  id="movement-observacoes-input"
                   rows={2}
                   placeholder="Ex: Troca preventiva de rolamentos devido a vibração detectada na análise preditiva..."
-                  value={notes}
+                  value={observacoes}
                   onChange={(e) => setNotes(e.target.value)}
                   className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 transition-all resize-none"
                 />

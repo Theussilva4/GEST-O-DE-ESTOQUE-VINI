@@ -9,14 +9,14 @@ import {
   TrendingDown,
   RefreshCw,
 } from 'lucide-react';
-import { Product } from '../types';
+import { Produto } from '../types';
 import { formatCurrency, formatNumber } from '../lib/utils';
 
 interface AuditReconcileModalProps {
   isOpen: boolean;
   onClose: () => void;
-  products: Product[];
-  onSaveAudit: (audits: Array<{ productId: string; countedStock: number; notes?: string }>, responsible: string) => Promise<void>;
+  products: Produto[];
+  onSaveAudit: (audits: Array<{ codproduto: string; countedStock: number; observacoes?: string }>, codusuario: string) => Promise<void>;
 }
 
 export const AuditReconcileModal: React.FC<AuditReconcileModalProps> = ({
@@ -25,17 +25,17 @@ export const AuditReconcileModal: React.FC<AuditReconcileModalProps> = ({
   products,
   onSaveAudit,
 }) => {
-  // Map of productId -> counted stock string
+  // Map of codproduto -> counted stock string
   const [counts, setCounts] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {};
     products.forEach((p) => {
-      initial[p.id] = String(p.currentStock);
+      initial[p.id] = String(p.estoque_atual);
     });
     return initial;
   });
 
-  const [responsible, setResponsible] = useState('Auditor de Estoque');
-  const [notes, setNotes] = useState('');
+  const [codusuario, setResponsible] = useState('Auditor de Estoque');
+  const [observacoes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -46,21 +46,21 @@ export const AuditReconcileModal: React.FC<AuditReconcileModalProps> = ({
   let totalPositiveDiff = 0;
   let totalNegativeDiff = 0;
   let totalCostImpact = 0;
-  const changesToApply: Array<{ productId: string; countedStock: number; notes?: string }> = [];
+  const changesToApply: Array<{ codproduto: string; countedStock: number; observacoes?: string }> = [];
 
   products.forEach((p) => {
     const counted = parseFloat(counts[p.id]);
-    if (!isNaN(counted) && counted !== p.currentStock) {
-      const diff = counted - p.currentStock;
+    if (!isNaN(counted) && counted !== p.estoque_atual) {
+      const diff = counted - p.estoque_atual;
       totalDifferences++;
       if (diff > 0) totalPositiveDiff += diff;
       else totalNegativeDiff += Math.abs(diff);
 
-      totalCostImpact += diff * p.costPrice;
+      totalCostImpact += diff * p.preco_custo;
       changesToApply.push({
-        productId: p.id,
+        codproduto: p.id,
         countedStock: counted,
-        notes: notes || `Balanço físico: De ${p.currentStock} para ${counted} ${p.unit}`,
+        observacoes: observacoes || `Balanço físico: De ${p.estoque_atual} para ${counted} ${p.unidade_medida}`,
       });
     }
   });
@@ -74,7 +74,7 @@ export const AuditReconcileModal: React.FC<AuditReconcileModalProps> = ({
     try {
       setIsSubmitting(true);
       setErrorMsg(null);
-      await onSaveAudit(changesToApply, responsible);
+      await onSaveAudit(changesToApply, codusuario);
       onClose();
     } catch (err: any) {
       setErrorMsg(err?.message || 'Erro ao aplicar balanço físico.');
@@ -162,8 +162,8 @@ export const AuditReconcileModal: React.FC<AuditReconcileModalProps> = ({
           <div className="space-y-2.5">
             {products.map((product) => {
               const counted = parseFloat(counts[product.id]);
-              const validCounted = !isNaN(counted) ? counted : product.currentStock;
-              const diff = validCounted - product.currentStock;
+              const validCounted = !isNaN(counted) ? counted : product.estoque_atual;
+              const diff = validCounted - product.estoque_atual;
 
               return (
                 <div
@@ -177,9 +177,9 @@ export const AuditReconcileModal: React.FC<AuditReconcileModalProps> = ({
                   }`}
                 >
                   <div className="flex items-center gap-3 flex-1 min-w-0">
-                    {product.imageUrl ? (
+                    {product.url_imagem ? (
                       <img
-                        src={product.imageUrl}
+                        src={product.url_imagem}
                         alt={product.name}
                         referrerPolicy="no-referrer"
                         className="w-10 h-10 rounded-lg object-cover border border-slate-200 dark:border-slate-700 shrink-0 bg-white"
@@ -199,9 +199,9 @@ export const AuditReconcileModal: React.FC<AuditReconcileModalProps> = ({
                         </span>
                       </div>
                       <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-2">
-                        <span>Categoria: {product.category}</span>
-                        {product.location && <span>• Local: {product.location}</span>}
-                        <span>• Custo: {formatCurrency(product.costPrice)}</span>
+                        <span>Categoria: {product.codcategoria}</span>
+                        {product.localizacao_estoque && <span>• Local: {product.localizacao_estoque}</span>}
+                        <span>• Custo: {formatCurrency(product.preco_custo)}</span>
                       </div>
                     </div>
                   </div>
@@ -210,7 +210,7 @@ export const AuditReconcileModal: React.FC<AuditReconcileModalProps> = ({
                     <div className="text-right">
                       <span className="text-[10px] text-slate-400 block">No Sistema</span>
                       <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                        {product.currentStock} {product.unit}
+                        {product.estoque_atual} {product.unidade_medida}
                       </span>
                     </div>
 
@@ -257,7 +257,7 @@ export const AuditReconcileModal: React.FC<AuditReconcileModalProps> = ({
               </label>
               <input
                 type="text"
-                value={responsible}
+                value={codusuario}
                 onChange={(e) => setResponsible(e.target.value)}
                 className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-100"
               />
@@ -269,7 +269,7 @@ export const AuditReconcileModal: React.FC<AuditReconcileModalProps> = ({
               <input
                 type="text"
                 placeholder="Ex: Auditoria Trimestral / Fechamento de Mês"
-                value={notes}
+                value={observacoes}
                 onChange={(e) => setNotes(e.target.value)}
                 className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-100"
               />

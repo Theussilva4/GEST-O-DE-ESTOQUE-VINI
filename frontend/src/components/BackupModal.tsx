@@ -11,14 +11,14 @@ import {
   HardDrive,
   ShieldCheck,
 } from 'lucide-react';
-import { Product, Movement } from '../types';
+import { Produto, Movimentacao } from '../types';
 
 interface BackupModalProps {
   isOpen: boolean;
   onClose: () => void;
-  products: Product[];
-  movements: Movement[];
-  onImportBackup: (data: { products: Product[]; movements: Movement[] }) => Promise<void>;
+  products: Produto[];
+  movements: Movimentacao[];
+  onImportBackup: (data: { products: Produto[]; movements: Movimentacao[] }) => Promise<void>;
   onResetSample: () => Promise<void>;
 }
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Product, Movement, MovementType } from './types';
+import { Produto, Movimentacao, TipoMovimentacao } from './types';
 import { Header } from './components/Header';
 import { Navigation, TabType } from './components/Navigation';
 import { InventoryView } from './components/InventoryView';
@@ -14,19 +14,19 @@ import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 const LOCAL_STORAGE_KEY = 'estoquepro_cached_db_v1';
 
 export default function App() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [movements, setMovements] = useState<Movement[]>([]);
+  const [products, setProducts] = useState<Produto[]>([]);
+  const [movements, setMovements] = useState<Movimentacao[]>([]);
   const [activeTab, setActiveTab] = useState<TabType>('inventory');
   const [isLoading, setIsLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(true);
 
   // Modals state
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
-  const [productToEdit, setProductToEdit] = useState<Product | null>(null);
+  const [productToEdit, setProductToEdit] = useState<Produto | null>(null);
 
   const [isMovementModalOpen, setIsMovementModalOpen] = useState(false);
-  const [movementInitialType, setMovementInitialType] = useState<MovementType>('IN');
-  const [movementPreselectedProduct, setMovementPreselectedProduct] = useState<Product | null>(null);
+  const [movementInitialType, setMovementInitialType] = useState<TipoMovimentacao>('IN');
+  const [movementPreselectedProduct, setMovementPreselectedProduct] = useState<Produto | null>(null);
 
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
@@ -84,7 +84,7 @@ export default function App() {
     loadInventory();
   }, [loadInventory]);
 
-  // Product CRUD
+  // Produto CRUD
   const handleSaveProduct = async (formData: any) => {
     try {
       if (productToEdit) {
@@ -123,31 +123,31 @@ export default function App() {
         const updated = {
           ...productToEdit,
           ...formData,
-          updatedAt: new Date().toISOString(),
+          data_atualizacao: new Date().toISOString(),
         };
         setProducts((prev) => prev.map((p) => (p.id === productToEdit.id ? updated : p)));
         showToast('Produto salvo localmente (modo offline)', 'info');
       } else {
         const newId = `prod-${Date.now()}`;
-        const newProd: Product = {
+        const newProd: Produto = {
           id: newId,
           code: formData.code || `MAN-${products.length + 1}`,
           barcode: formData.barcode,
           name: formData.name,
-          equipmentTag: formData.equipmentTag,
-          criticality: formData.criticality || 'LOW',
-          imageUrl: formData.imageUrl,
+          tag_equipamento: formData.tag_equipamento,
+          criticidade: formData.criticidade || 'LOW',
+          url_imagem: formData.url_imagem,
           description: formData.description,
-          category: formData.category,
-          unit: formData.unit,
-          currentStock: formData.initialStock || 0,
-          minStock: formData.minStock || 5,
-          maxStock: formData.maxStock,
-          costPrice: formData.costPrice || 0,
-          supplier: formData.supplier,
-          location: formData.location,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          codcategoria: formData.codcategoria,
+          unidade_medida: formData.unidade_medida,
+          estoque_atual: formData.initialStock || 0,
+          estoque_minimo: formData.estoque_minimo || 5,
+          estoque_maximo: formData.estoque_maximo,
+          preco_custo: formData.preco_custo || 0,
+          codfornecedor: formData.codfornecedor,
+          localizacao_estoque: formData.localizacao_estoque,
+          data_criacao: new Date().toISOString(),
+          data_atualizacao: new Date().toISOString(),
         };
         setProducts((prev) => [newProd, ...prev]);
         showToast('Sobressalente cadastrado localmente (modo offline)', 'info');
@@ -155,19 +155,19 @@ export default function App() {
     }
   };
 
-  const handleDeleteProduct = async (productId: string) => {
+  const handleDeleteProduct = async (codproduto: string) => {
     try {
-      const res = await fetch(`/api/products/${productId}`, { method: 'DELETE' });
+      const res = await fetch(`/api/products/${codproduto}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Erro ao excluir no servidor.');
-      setProducts((prev) => prev.filter((p) => p.id !== productId));
+      setProducts((prev) => prev.filter((p) => p.id !== codproduto));
       showToast('Produto excluído com sucesso!', 'success');
     } catch (err) {
-      setProducts((prev) => prev.filter((p) => p.id !== productId));
+      setProducts((prev) => prev.filter((p) => p.id !== codproduto));
       showToast('Produto excluído localmente', 'info');
     }
   };
 
-  // Movement handler (Entry / Exit)
+  // Movimentacao handler (Entry / Exit)
   const handleSaveMovement = async (movementData: any) => {
     try {
       const res = await fetch('/api/movements', {
@@ -191,35 +191,35 @@ export default function App() {
       );
     } catch (err: any) {
       // Offline simulation
-      const prod = products.find((p) => p.id === movementData.productId);
+      const prod = products.find((p) => p.id === movementData.codproduto);
       if (prod) {
         const qty = Number(movementData.quantity);
-        const prev = prod.currentStock;
-        const newStock =
+        const prev = prod.estoque_atual;
+        const estoque_novo =
           movementData.type === 'IN' ? prev + qty : Math.max(0, prev - qty);
         const updatedProd = {
           ...prod,
-          currentStock: newStock,
-          updatedAt: new Date().toISOString(),
+          estoque_atual: estoque_novo,
+          data_atualizacao: new Date().toISOString(),
         };
 
-        const newMov: Movement = {
+        const newMov: Movimentacao = {
           id: `mov-${Date.now()}`,
-          productId: prod.id,
-          productCode: prod.code,
-          productName: prod.name,
+          codproduto: prod.id,
+          codigo_interno: prod.code,
+          nome: prod.name,
           type: movementData.type,
           quantity: qty,
-          previousStock: prev,
-          newStock,
-          unitPrice: movementData.unitPrice || prod.costPrice,
-          totalPrice: qty * (movementData.unitPrice || prod.costPrice),
+          estoque_anterior: prev,
+          estoque_novo,
+          preco_unitario: movementData.preco_unitario || prod.preco_custo,
+          preco_total: qty * (movementData.preco_unitario || prod.preco_custo),
           reason: movementData.reason,
-          documentNumber: movementData.documentNumber,
-          contactName: movementData.contactName,
-          responsible: movementData.responsible,
-          notes: movementData.notes,
-          timestamp: movementData.timestamp || new Date().toISOString(),
+          numero_documento: movementData.numero_documento,
+          nome_contato: movementData.nome_contato,
+          codusuario: movementData.codusuario,
+          observacoes: movementData.observacoes,
+          data_movimentacao: movementData.data_movimentacao || new Date().toISOString(),
         };
 
         setProducts((prevP) => prevP.map((p) => (p.id === prod.id ? updatedProd : p)));
@@ -245,14 +245,14 @@ export default function App() {
 
   // Audit Reconcile
   const handleSaveAudit = async (
-    audits: Array<{ productId: string; countedStock: number; notes?: string }>,
-    responsible: string
+    audits: Array<{ codproduto: string; countedStock: number; observacoes?: string }>,
+    codusuario: string
   ) => {
     try {
       const res = await fetch('/api/inventory/reconcile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ audits, responsible }),
+        body: JSON.stringify({ audits, codusuario }),
       });
       if (!res.ok) throw new Error('Erro ao reconciliar inventário.');
       const data = await res.json();
@@ -264,8 +264,8 @@ export default function App() {
       audits.forEach((item) => {
         setProducts((prev) =>
           prev.map((p) =>
-            p.id === item.productId
-              ? { ...p, currentStock: item.countedStock, updatedAt: new Date().toISOString() }
+            p.id === item.codproduto
+              ? { ...p, estoque_atual: item.countedStock, data_atualizacao: new Date().toISOString() }
               : p
           )
         );
@@ -275,7 +275,7 @@ export default function App() {
   };
 
   // Backup Import & Reset
-  const handleImportBackup = async (data: { products: Product[]; movements: Movement[] }) => {
+  const handleImportBackup = async (data: { products: Produto[]; movements: Movimentacao[] }) => {
     try {
       const res = await fetch('/api/backup', {
         method: 'POST',
@@ -312,18 +312,18 @@ export default function App() {
     setIsProductModalOpen(true);
   };
 
-  const handleOpenEditProduct = (prod: Product) => {
+  const handleOpenEditProduct = (prod: Produto) => {
     setProductToEdit(prod);
     setIsProductModalOpen(true);
   };
 
-  const handleOpenNewEntry = (prod?: Product) => {
+  const handleOpenNewEntry = (prod?: Produto) => {
     setMovementInitialType('IN');
     setMovementPreselectedProduct(prod || null);
     setIsMovementModalOpen(true);
   };
 
-  const handleOpenNewExit = (prod?: Product) => {
+  const handleOpenNewExit = (prod?: Produto) => {
     setMovementInitialType('OUT');
     setMovementPreselectedProduct(prod || null);
     setIsMovementModalOpen(true);
@@ -331,11 +331,11 @@ export default function App() {
 
   // Counts
   const existingCategories = useMemo(() => {
-    return Array.from(new Set(products.map((p) => p.category).filter(Boolean)));
+    return Array.from(new Set(products.map((p) => p.codcategoria).filter(Boolean)));
   }, [products]);
 
   const alertCount = useMemo(() => {
-    return products.filter((p) => p.currentStock <= p.minStock).length;
+    return products.filter((p) => p.estoque_atual <= p.estoque_minimo).length;
   }, [products]);
 
   const entriesCount = useMemo(() => {
@@ -449,7 +449,7 @@ export default function App() {
         )}
       </main>
 
-      {/* Modal: Product Registration & Edit */}
+      {/* Modal: Produto Registration & Edit */}
       <ProductFormModal
         isOpen={isProductModalOpen}
         onClose={() => setIsProductModalOpen(false)}
@@ -458,7 +458,7 @@ export default function App() {
         existingCategories={existingCategories}
       />
 
-      {/* Modal: Movement (Entry or Exit) */}
+      {/* Modal: Movimentacao (Entry or Exit) */}
       <MovementModal
         isOpen={isMovementModalOpen}
         onClose={() => setIsMovementModalOpen(false)}

@@ -1,0 +1,85 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model usuarios {
+  codusuario    String          @id @default(uuid())
+  nome          String
+  email         String          @unique
+  senha_hash    String
+  nivel_acesso  String          @default("OPERADOR")
+  data_criacao  DateTime        @default(now())
+
+  movimentacoes movimentacoes[]
+}
+
+model categorias {
+  codcategoria  String     @id @default(uuid())
+  nome          String     @unique
+  descricao     String?
+
+  produtos      produtos[]
+}
+
+model fornecedores {
+  codfornecedor String     @id @default(uuid())
+  razao_social  String
+  nome_fantasia String
+  cnpj          String?    @unique
+  email         String?
+  telefone      String?
+
+  produtos      produtos[]
+}
+
+model produtos {
+  codproduto           String     @id @default(uuid())
+  codcategoria         String
+  codfornecedor        String?
+  codigo_interno       String     @unique
+  codigo_barras        String?    @unique
+  nome                 String
+  descricao            String?
+  url_imagem           String?
+  unidade_medida       String     @default("UN")
+  estoque_atual        Decimal    @db.Decimal(10, 2)
+  estoque_minimo       Decimal    @db.Decimal(10, 2)
+  estoque_maximo       Decimal?   @db.Decimal(10, 2)
+  preco_custo          Decimal    @db.Decimal(10, 2)
+  preco_venda          Decimal    @db.Decimal(10, 2)
+  localizacao_estoque  String?
+  tag_equipamento      String?
+  criticidade          String     @default("BAIXA")
+  data_criacao         DateTime   @default(now())
+  data_atualizacao     DateTime   @updatedAt
+
+  categoria   categorias    @relation(fields: [codcategoria], references: [codcategoria])
+  fornecedor  fornecedores? @relation(fields: [codfornecedor], references: [codfornecedor])
+
+  movimentacoes movimentacoes[]
+}
+
+model movimentacoes {
+  codmovimentacao  String   @id @default(uuid())
+  codproduto       String
+  codusuario       String?  
+  tipo_movimentacao String
+  quantidade       Decimal  @db.Decimal(10, 2)
+  estoque_anterior Decimal  @db.Decimal(10, 2)
+  estoque_novo     Decimal  @db.Decimal(10, 2)
+  preco_unitario   Decimal  @db.Decimal(10, 2)
+  preco_total      Decimal  @db.Decimal(10, 2)
+  motivo_descricao String
+  numero_documento String?
+  nome_contato     String?
+  observacoes      String?
+  data_movimentacao DateTime @default(now())
+
+  produto  produtos  @relation(fields: [codproduto], references: [codproduto])
+  usuario  usuarios? @relation(fields: [codusuario], references: [codusuario])
+}
