@@ -228,23 +228,23 @@ export const BackupModal: React.FC<BackupModalProps> = ({
               </div>
             </div>
 
-            {/* Reset sample */}
-            <div className="p-4 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-between">
+            {/* Reset to Factory Mode */}
+            <div className="p-4 rounded-xl border border-dashed border-red-200 dark:border-red-900/50 bg-red-50/30 dark:bg-red-950/20 flex items-center justify-between">
               <div>
-                <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                  <RefreshCw className="w-4 h-4 text-amber-600" /> Resetar com Dados de Exemplo
+                <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                  <RefreshCw className="w-4 h-4 text-red-600" /> Zerar Tudo (Base Limpa)
                 </h4>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                  Recarrega produtos e movimentações fictícias para testes.
+                  Zera todos os produtos, movimentações, O.S. e locais para iniciar o cadastro do zero.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={handleReset}
                 disabled={isProcessing}
-                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 border border-slate-200 dark:border-slate-700 transition-colors disabled:opacity-50"
+                className="px-3 py-1.5 bg-red-50 hover:bg-red-100 dark:bg-red-950/60 dark:hover:bg-red-900/80 text-red-700 dark:text-red-300 text-xs font-semibold rounded-lg flex items-center gap-1.5 border border-red-200 dark:border-red-800 transition-colors disabled:opacity-50"
               >
-                <RefreshCw className="w-3.5 h-3.5" /> Resetar
+                <RefreshCw className="w-3.5 h-3.5" /> Zerar Sistema
               </button>
             </div>
           </div>

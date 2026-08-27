@@ -8,29 +8,45 @@ datasource db {
 }
 
 model usuarios {
-  codusuario    String          @id @default(uuid())
+  codusuario    String    @id @default(uuid())
   nome          String
-  email         String          @unique
+  username      String    @unique
+  email         String?
+  role          String    @default("ALMOXARIFE") // ADMIN, ALMOXARIFE, PCM_ENG, MECANICO, CONSULTA
   senha_hash    String
-  nivel_acesso  String          @default("OPERADOR")
-  data_criacao  DateTime        @default(now())
+  ativo         Boolean   @default(true)
+  departamento  String?
+  cor_avatar    String?
+  data_criacao  DateTime  @default(now())
+  ultimo_login  DateTime?
 
   movimentacoes movimentacoes[]
 }
 
+model areas_operacionais {
+  codarea       String    @id @default(uuid())
+  nome          String    @unique
+  tipo          String    // SETOR, LINHA, GALPAO, UNIDADE, ESTACAO, OFICINA, ETA, ETE, POCO, OUTROS
+  codigo        String?
+  descricao     String?
+  ativo         Boolean   @default(true)
+  data_criacao  DateTime  @default(now())
+  data_atualizacao DateTime @updatedAt
+}
+
 model categorias {
-  codcategoria  String     @id @default(uuid())
-  nome          String     @unique
+  codcategoria  String    @id @default(uuid())
+  nome          String    @unique
   descricao     String?
 
   produtos      produtos[]
 }
 
 model fornecedores {
-  codfornecedor String     @id @default(uuid())
+  codfornecedor String    @id @default(uuid())
   razao_social  String
   nome_fantasia String
-  cnpj          String?    @unique
+  cnpj          String?   @unique
   email         String?
   telefone      String?
 
@@ -54,6 +70,7 @@ model produtos {
   preco_venda          Decimal    @db.Decimal(10, 2)
   localizacao_estoque  String?
   tag_equipamento      String?
+  area_operacional     String?
   criticidade          String     @default("BAIXA")
   data_criacao         DateTime   @default(now())
   data_atualizacao     DateTime   @updatedAt
@@ -62,6 +79,7 @@ model produtos {
   fornecedor  fornecedores? @relation(fields: [codfornecedor], references: [codfornecedor])
 
   movimentacoes movimentacoes[]
+  itens_os      itens_ordem_servico[]
 }
 
 model movimentacoes {
@@ -77,9 +95,49 @@ model movimentacoes {
   motivo_descricao String
   numero_documento String?
   nome_contato     String?
+  area_operacional String?
   observacoes      String?
   data_movimentacao DateTime @default(now())
 
   produto  produtos  @relation(fields: [codproduto], references: [codproduto])
   usuario  usuarios? @relation(fields: [codusuario], references: [codusuario])
+}
+
+model ordens_servico {
+  codordem           String   @id @default(uuid())
+  numero_os          String   @unique
+  data_abertura      DateTime @default(now())
+  tipo_servico       String
+  aplicacao          String
+  tag_equipamento    String?
+  area_operacional   String?
+  nome_requisitante  String
+  cargo_requisitante String?
+  autorizado_por     String
+  almoxarife         String?
+  setor              String?
+  prioridade         String
+  custo_total        Decimal  @db.Decimal(10, 2) @default(0)
+  quantidade_total   Decimal  @db.Decimal(10, 2) @default(0)
+  status             String   @default("ABERTA") // ABERTA, PARCIAL, CONCLUIDA, CANCELADA
+  data_baixa         DateTime?
+  baixado_por        String?
+  observacoes        String?
+  data_criacao       DateTime @default(now())
+
+  itens itens_ordem_servico[]
+}
+
+model itens_ordem_servico {
+  coditem            String   @id @default(uuid())
+  codordem           String
+  codproduto         String
+  quantidade_pedida  Decimal  @db.Decimal(10, 2)
+  quantidade_baixada Decimal  @db.Decimal(10, 2) @default(0)
+  quantidade_devolvida Decimal @db.Decimal(10, 2) @default(0)
+  preco_unitario     Decimal  @db.Decimal(10, 2)
+  preco_total        Decimal  @db.Decimal(10, 2)
+
+  ordem_servico  ordens_servico @relation(fields: [codordem], references: [codordem], onDelete: Cascade)
+  produto        produtos       @relation(fields: [codproduto], references: [codproduto])
 }

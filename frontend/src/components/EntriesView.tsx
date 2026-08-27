@@ -353,11 +353,11 @@ export const EntriesView: React.FC<EntriesViewProps> = ({
                       </td>
 
                       {/* Produto */}
-                      <td className="py-3.5 px-4 max-w-xs">
-                        <div className="font-semibold text-slate-900 dark:text-slate-100 truncate">
+                      <td className="py-3.5 px-4 min-w-[200px] max-w-sm">
+                        <div className="font-semibold text-slate-900 dark:text-slate-100 break-words leading-snug">
                           {movement.nome}
                         </div>
-                        <div className="text-[10px] font-mono text-slate-400">
+                        <div className="text-[10px] font-mono text-slate-400 mt-0.5">
                           {movement.codigo_interno}
                         </div>
                       </td>
@@ -394,11 +394,11 @@ export const EntriesView: React.FC<EntriesViewProps> = ({
                       </td>
 
                       {/* Contact / Supplier */}
-                      <td className="py-3.5 px-4 text-slate-600 dark:text-slate-400">
+                      <td className="py-3.5 px-4 text-slate-600 dark:text-slate-400 min-w-[140px]">
                         {movement.nome_contato ? (
-                          <div className="flex items-center gap-1 text-xs">
+                          <div className="flex items-center gap-1 text-xs break-words">
                             <Building2 className="w-3 h-3 text-slate-400 shrink-0" />
-                            <span className="truncate max-w-[150px]">{movement.nome_contato}</span>
+                            <span className="break-words">{movement.nome_contato}</span>
                           </div>
                         ) : (
                           <span className="text-slate-400 text-[11px]">-</span>

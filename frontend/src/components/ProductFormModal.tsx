@@ -45,21 +45,18 @@ const COMMON_UNITS: { value: UnidadeProduto; label: string }[] = [
 ];
 
 const SUGGESTED_MAINTENANCE_CATEGORIES = [
-  'Rolamentos & Mancais',
+  'Mecânica',
+  'Elétrica',
   'Pneumática',
   'Hidráulica',
-  'Elétrica & Painéis',
-  'Motores & Redutores',
-  'Lubrificantes & Químicos',
-  'Correias & Polias',
-  'Vedações & Retentores',
+  'Instrumentação & Sensores',
+  'Rolamentos & Mancais',
+  'Vedações & Selos',
   'Fixação & Parafusos',
-  'Ferramentas & Desgaste',
-  'Sensores & Automação',
-  'EPI & Segurança Industrial',
-  'Bombas & Válvulas',
-  'Filtros & Elementos Filtrantes',
-  'Outros Sobressalentes',
+  'EPI & Segurança',
+  'Ferramentas & Acessórios',
+  'Usinagem & Caldeiraria',
+  'Outros',
 ];
 
 // Helper to compress images client-side into lightweight base64
@@ -125,13 +122,13 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     tag_equipamento: '',
     criticidade: 'LOW' as CriticidadeManutencao,
     initialStock: '0',
-    estoque_minimo: '2',
+    estoque_minimo: '0',
     estoque_maximo: '',
     preco_custo: '',
     preco_venda: '',
     codfornecedor: '',
     localizacao_estoque: '',
-    codusuario: 'Almoxarife / PCM',
+    codusuario: '',
   });
 
   const [isScannerOpen, setIsScannerOpen] = useState(false);
@@ -163,7 +160,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         preco_venda: String(productToEdit.preco_venda || productToEdit.preco_custo || ''),
         codfornecedor: productToEdit.codfornecedor || '',
         localizacao_estoque: productToEdit.localizacao_estoque || '',
-        codusuario: 'Almoxarife / PCM',
+        codusuario: '',
       });
       setShowUrlInput(Boolean(productToEdit.url_imagem && productToEdit.url_imagem.startsWith('http')));
     } else {
@@ -178,13 +175,13 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         tag_equipamento: '',
         criticidade: 'LOW',
         initialStock: '0',
-        estoque_minimo: '2',
+        estoque_minimo: '0',
         estoque_maximo: '',
         preco_custo: '',
         preco_venda: '',
         codfornecedor: '',
         localizacao_estoque: '',
-        codusuario: 'Almoxarife / PCM',
+        codusuario: '',
       });
       setShowUrlInput(false);
     }
@@ -283,8 +280,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 </h2>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
                   {isEditing
-                    ? 'Atualize foto, código de barras, TAGs de máquina e dados do estoque'
-                    : 'Cadastre sobressalentes, ferramentas, EPIs ou peças de reposição'}
+                    ? 'Atualize foto, código de barras, TAGs operacionais e dados do estoque'
+                    : 'Cadastre sobressalentes, ferramentas, conexões ou peças de reposição'}
                 </p>
               </div>
             </div>
@@ -528,7 +525,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             {/* Maintenance Specific: Equipment TAG & Criticality */}
             <div>
               <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3 flex items-center gap-1.5">
-                <Wrench className="w-3.5 h-3.5 text-emerald-600" /> Aplicação em Máquinas & Criticidade
+                <Wrench className="w-3.5 h-3.5 text-emerald-600" /> Aplicação Operacional & Criticidade
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
                 <div>
@@ -540,20 +537,20 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                     <input
                       id="product-equipment-tag-input"
                       type="text"
-                      placeholder="Ex: PRE-HY-02 / RED-04 / Linha 01"
+                      placeholder="Ex: BOM-01, MTR-02, COMP-01, LINHA-01..."
                       value={formData.tag_equipamento}
                       onChange={(e) => setFormData({ ...formData, tag_equipamento: e.target.value })}
                       className="w-full pl-9 pr-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 transition-all"
                     />
                   </div>
                   <span className="text-[10px] text-slate-400 block mt-1">
-                    Ajuda o técnico a localizar o sobressalente por TAG de máquina.
+                    Facilita a localização do sobressalente por TAG operacional ou equipamento.
                   </span>
                 </div>
 
                 <div>
                   <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                    Criticidade da Peça na Planta *
+                    Criticidade da Peça na Operação *
                   </label>
                   <select
                     id="product-criticidade-select"
@@ -563,8 +560,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                     }
                     className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500 transition-all font-medium"
                   >
-                    <option value="HIGH">🔴 Alta (Crítica A - Causa Parada de Fábrica)</option>
-                    <option value="MEDIUM">🟡 Média (Importante B - Impacto Parcial)</option>
+                    <option value="HIGH">🔴 Alta (Crítica A - Parada de Linha / Processo / Produção)</option>
+                    <option value="MEDIUM">🟡 Média (Importante B - Impacto Parcial / Com Redundância)</option>
                     <option value="LOW">⚪ Baixa (Geral C - Consumo / Sem Parada)</option>
                   </select>
                   <span className="text-[10px] text-slate-400 block mt-1">

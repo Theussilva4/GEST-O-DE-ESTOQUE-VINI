@@ -8,6 +8,7 @@ import {
   Trash2,
   AlertTriangle,
   Package,
+  Boxes,
   Layers,
   DollarSign,
   Download,
@@ -26,6 +27,7 @@ import {
 import { Produto, Movimentacao, CriticidadeManutencao } from '../types';
 import { formatCurrency, formatNumber, getStockStatus, getCriticalityInfo, exportToCSV } from '../lib/utils';
 import { BarcodeScannerModal } from './BarcodeScannerModal';
+import { generateInventoryReportPDF } from '../lib/pdfGenerator';
 
 interface InventoryViewProps {
   products: Produto[];
@@ -188,7 +190,12 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   };
 
   const handlePrint = () => {
-    window.print();
+    try {
+      generateInventoryReportPDF(filteredProducts);
+    } catch (err) {
+      console.error('Error generating PDF report:', err);
+      window.print();
+    }
   };
 
   const confirmDelete = async () => {
@@ -210,11 +217,11 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2.5">
-            <Wrench className="w-7 h-7 text-emerald-600 dark:text-emerald-400" />
-            <span>Inventário de Sobressalentes & MRO</span>
+            <Boxes className="w-7 h-7 text-emerald-600 dark:text-emerald-400" />
+            <span>Controle de Estoque PRO</span>
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            Gestão de peças de reposição, TAGs de máquinas, criticidade e ponto de pedido para manutenção.
+            Gestão de peças, bombas, conexões, TAGs operacionais e sobressalentes para sistemas de saneamento e água.
           </p>
         </div>
 
@@ -319,7 +326,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
               {stats.highCriticalityCount} itens
             </div>
             <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Peças vitais que param a fábrica se faltarem
+              Peças vitais que causam interrupção no abastecimento ou tratamento
             </div>
           </div>
         </div>
@@ -366,7 +373,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             <input
               id="inventory-search-input"
               type="text"
-              placeholder="Buscar por descrição, código SKU, código de barras, TAG de máquina ou localização..."
+              placeholder="Buscar por descrição, código SKU, código de barras, TAG operacional, estação ou localização..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-10 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all"
@@ -507,10 +514,11 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
               id="print-inventory-btn"
               type="button"
               onClick={handlePrint}
-              title="Imprimir Relatório de Almoxarifado"
-              className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors hidden sm:inline-flex"
+              title="Gerar e Imprimir Relatório de Almoxarifado em PDF"
+              className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold flex items-center gap-1.5 border border-slate-200 dark:border-slate-700 transition-colors shadow-sm"
             >
-              <Printer className="w-4 h-4" />
+              <Printer className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <span className="hidden sm:inline">Relatório PDF</span>
             </button>
           </div>
         </div>
@@ -606,30 +614,35 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                       </td>
 
                       {/* Name & Location */}
-                      <td className="py-3.5 px-4 max-w-xs">
-                        <div className="font-semibold text-slate-900 dark:text-slate-100 truncate">
+                      <td className="py-3.5 px-4 min-w-[200px]">
+                        <div className="font-semibold text-slate-900 dark:text-slate-100 leading-snug break-words whitespace-normal">
                           {product.name}
                         </div>
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-2 mt-0.5">
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400 flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 leading-normal whitespace-normal break-words">
                           {product.localizacao_estoque ? (
-                            <span className="flex items-center gap-1">
-                              <MapPin className="w-3 h-3 text-slate-400" /> {product.localizacao_estoque}
+                            <span className="inline-flex items-center gap-1 shrink-0">
+                              <MapPin className="w-3 h-3 text-slate-400 shrink-0" /> {product.localizacao_estoque}
                             </span>
                           ) : null}
                           {product.codfornecedor ? (
-                            <span className="truncate max-w-[130px] text-slate-400">
-                              • {product.codfornecedor}
+                            <span className="text-slate-500 dark:text-slate-400 break-words whitespace-normal">
+                              {product.localizacao_estoque ? '• ' : ''}{product.codfornecedor}
                             </span>
                           ) : null}
+                          {product.description && (
+                            <span className="text-slate-400 dark:text-slate-500 text-[10px] w-full block mt-0.5 break-words whitespace-normal">
+                              {product.description}
+                            </span>
+                          )}
                         </div>
                       </td>
 
                       {/* Equipment TAG */}
-                      <td className="py-3.5 px-4 whitespace-nowrap">
+                      <td className="py-3.5 px-4 min-w-[120px]">
                         {product.tag_equipamento ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 font-mono text-[11px] font-medium border border-emerald-200/60 dark:border-emerald-800/60">
-                            <Tag className="w-3 h-3" />
-                            {product.tag_equipamento}
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 font-mono text-[11px] font-medium border border-emerald-200/60 dark:border-emerald-800/60 break-words">
+                            <Tag className="w-3 h-3 shrink-0" />
+                            <span>{product.tag_equipamento}</span>
                           </span>
                         ) : (
                           <span className="text-slate-400 text-[11px]">Uso Geral</span>
@@ -637,9 +650,9 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                       </td>
 
                       {/* Criticality */}
-                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                      <td className="py-3.5 px-4 text-center">
                         <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold border ${crit.bg} ${crit.color} ${crit.border}`}
+                          className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold border leading-tight text-center ${crit.bg} ${crit.color} ${crit.border}`}
                         >
                           {crit.label}
                         </span>
@@ -734,7 +747,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
         </div>
       ) : (
         /* Mobile / Cards View */
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3.5">
           {filteredProducts.map((product) => {
             const status = getStockStatus(product);
             const crit = getCriticalityInfo(product.criticidade);
@@ -792,29 +805,34 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                           </span>
                         </div>
                       </div>
-                      <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100 line-clamp-1 mt-0.5">
+                      <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100 break-words whitespace-normal leading-snug mt-0.5">
                         {product.name}
                       </h3>
                       {product.barcode && (
-                        <div className="text-[10px] text-slate-400 flex items-center gap-1 font-mono">
-                          <Barcode className="w-3 h-3" /> {product.barcode}
+                        <div className="text-[10px] text-slate-400 flex items-center gap-1 font-mono mt-0.5 break-words">
+                          <Barcode className="w-3 h-3 shrink-0" /> {product.barcode}
                         </div>
                       )}
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-1.5 mt-2 text-xs text-slate-500 dark:text-slate-400">
+                  <div className="flex flex-wrap items-center gap-1.5 mt-2 text-xs text-slate-500 dark:text-slate-400 whitespace-normal">
                     <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[10px] font-medium">
                       {product.codcategoria}
                     </span>
                     {product.tag_equipamento && (
-                      <span className="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 font-mono text-[10px] font-medium flex items-center gap-1">
-                        <Tag className="w-3 h-3" /> {product.tag_equipamento}
+                      <span className="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 font-mono text-[10px] font-medium flex items-center gap-1 break-words">
+                        <Tag className="w-3 h-3 shrink-0" /> {product.tag_equipamento}
                       </span>
                     )}
                     {product.localizacao_estoque && (
-                      <span className="flex items-center gap-1 text-[11px]">
-                        <MapPin className="w-3 h-3 text-slate-400" /> {product.localizacao_estoque}
+                      <span className="flex items-center gap-1 text-[11px] break-words">
+                        <MapPin className="w-3 h-3 text-slate-400 shrink-0" /> {product.localizacao_estoque}
+                      </span>
+                    )}
+                    {product.codfornecedor && (
+                      <span className="text-[11px] text-slate-400 break-words whitespace-normal">
+                        • {product.codfornecedor}
                       </span>
                     )}
                   </div>
