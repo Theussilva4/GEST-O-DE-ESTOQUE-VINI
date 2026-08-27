@@ -80,7 +80,7 @@ app.get('/api/inventory', async (req, res) => {
     const workOrders = await prisma.ordens_servico.findMany({ include: { itens: { include: { produto: true } } }, orderBy: { data_criacao: 'desc' }});
 
     res.json({
-      products: produtos.map(p => ({ ...p, id: p.codproduto, name: p.nome, code: p.codigo_interno, barcode: p.codigo_barras, description: p.descricao, category: p.categoria?.nome, categoria_nome: p.categoria?.nome, fornecedor_nome: p.fornecedor?.nome_fantasia })),
+      products: produtos.map(p => ({ ...p, id: p.codproduto, name: p.nome, code: p.codigo_interno, barcode: p.codigo_barras, description: p.descricao, category: p.categoria?.nome, categoria_nome: p.categoria?.nome, codcategoria: p.categoria?.nome || 'Geral', fornecedor_nome: p.fornecedor?.nome_fantasia, codfornecedor: p.fornecedor?.nome_fantasia || p.codfornecedor })),
       movements: movimentacoes.map(m => ({ ...m, id: m.codmovimentacao, type: m.tipo_movimentacao === 'ENTRADA' ? 'IN' : m.tipo_movimentacao === 'SAIDA' ? 'OUT' : 'ADJUST', quantity: m.quantidade, reason: m.motivo_descricao, nome: m.produto?.nome, codigo_interno: m.produto?.codigo_interno, codusuario: m.usuario?.nome || 'Sistema', produto_nome: m.produto?.nome, produto_codigo: m.produto?.codigo_interno })),
       users: usuarios.map(mapUser),
       areas: areas.map(a => ({ ...a, id: a.codarea })),
