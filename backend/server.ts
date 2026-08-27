@@ -5,8 +5,6 @@ import crypto from 'crypto';
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(express.json({ limit: '10mb' }));
-
 // CORS
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
@@ -15,6 +13,8 @@ app.use((req, res, next) => {
   if (req.method === 'OPTIONS') return res.sendStatus(200);
   next();
 });
+
+app.use(express.json({ limit: '10mb' }));
 
 function hashPassword(password: string): string {
   return crypto.createHash('sha256').update(password + '_industrial_mro_salt_2026').digest('hex');
