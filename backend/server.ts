@@ -1,6 +1,11 @@
 import express from 'express';
 import { prisma } from './src/lib/db';
 import crypto from 'crypto';
+import { Prisma } from '@prisma/client';
+
+(Prisma.Decimal.prototype as any).toJSON = function() {
+  return this.toNumber();
+};
 
 const app = express();
 const PORT = process.env.PORT || 3000;
