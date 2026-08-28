@@ -95,9 +95,15 @@ app.get('/api/inventory', async (req, res) => {
 // ---------------------------------------------
 // PRODUTOS
 // ---------------------------------------------
-app.post('/api/products', async (req, res) => {
-  const { codigo_interno, codigo_barras, nome, descricao, url_imagem, codcategoria, unidade_medida, estoque_atual, estoque_minimo, estoque_maximo, preco_custo, preco_venda, localizacao_estoque, tag_equipamento, criticidade, area_operacional } = req.body;
-  if (!nome) return res.status(400).json({ error: 'Nome Ã© obrigatÃ³rio.' });
+  app.post('/api/products', async (req, res) => {
+    const { codcategoria, unidade_medida, url_imagem, estoque_minimo, estoque_maximo, preco_custo, preco_venda, localizacao_estoque, tag_equipamento, criticidade, area_operacional } = req.body;
+    const nome = req.body.nome || req.body.name;
+    const codigo_interno = req.body.codigo_interno || req.body.code;
+    const codigo_barras = req.body.codigo_barras || req.body.barcode;
+    const descricao = req.body.descricao || req.body.description;
+    const estoque_atual = req.body.estoque_atual !== undefined ? req.body.estoque_atual : (req.body.initialStock !== undefined ? req.body.initialStock : req.body.currentStock);
+
+    if (!nome) return res.status(400).json({ error: 'Nome é obrigatório.' });
 
   try {
     let categoriaId = codcategoria;
@@ -161,6 +167,10 @@ app.post('/api/products', async (req, res) => {
 app.put('/api/products/:id', async (req, res) => {
   try {
     const p = req.body;
+    const nome = p.nome || p.name;
+    const codigo_interno = p.codigo_interno || p.code;
+    const codigo_barras = p.codigo_barras || p.barcode;
+    const descricao = p.descricao || p.description;
     
     let categoriaId = p.codcategoria;
     if (p.codcategoria && !p.codcategoria.includes('-')) {
@@ -171,8 +181,8 @@ app.put('/api/products/:id', async (req, res) => {
     const updated = await prisma.produtos.update({
       where: { codproduto: req.params.id },
       data: {
-        nome: p.nome,
-        descricao: p.descricao,
+        nome: nome,
+        descricao: descricao,
         preco_custo: p.preco_custo !== undefined ? Number(p.preco_custo) : undefined,
         preco_venda: p.preco_venda !== undefined ? Number(p.preco_venda) : undefined,
         estoque_minimo: p.estoque_minimo !== undefined ? Number(p.estoque_minimo) : undefined,
@@ -180,7 +190,10 @@ app.put('/api/products/:id', async (req, res) => {
         localizacao_estoque: p.localizacao_estoque,
         tag_equipamento: p.tag_equipamento,
         criticidade: p.criticidade,
-        codcategoria: categoriaId || undefined,
+        url_imagem: p.url_imagem,
+        codcategoria: categoriaId,
+        codigo_interno: codigo_interno,
+        codigo_barras: codigo_barras,
         unidade_medida: p.unidade_medida,
         area_operacional: p.area_operacional
       },
