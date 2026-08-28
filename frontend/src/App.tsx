@@ -296,6 +296,9 @@ export default function App() {
       if (data.products) setProducts(data.products);
       if (data.movements) setMovements(data.movements);
 
+      // Force a full refresh to ensure UI is in sync with database
+      loadInventory();
+
       showToast(
         movementData.type === 'IN'
           ? `Entrada de +${movementData.quantity} registrada com sucesso!`
@@ -349,6 +352,10 @@ export default function App() {
       const data = await res.json();
       if (data.products) setProducts(data.products);
       if (data.movements) setMovements(data.movements);
+      
+      // Force a full refresh to ensure UI is in sync with database
+      loadInventory();
+
       showToast('Movimentação estornada e estoque recalculado!', 'success');
     } catch (err) {
       setMovements((prev) => prev.filter((m) => m.id !== movementId));
