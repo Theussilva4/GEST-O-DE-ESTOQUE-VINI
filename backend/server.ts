@@ -92,6 +92,44 @@ app.get('/api/inventory', async (req, res) => {
   }
 });
 
+  // ---------------------------------------------
+  app.post('/api/inventory/reconcile', async (req, res) => {
+    try {
+      const { audits, codusuario } = req.body;
+      if (!Array.isArray(audits)) return res.status(400).json({ error: 'Formato inválido.' });
+      
+      await prisma.$transaction(async (tx) => {
+        for (const audit of audits) {
+          const p = await tx.produtos.findUnique({ where: { codproduto: audit.codproduto }});
+          if (!p) continue;
+          const prev = Number(p.estoque_atual);
+          const next = Number(audit.countedStock);
+          if (prev === next) continue;
+
+          await tx.movimentacoes.create({
+            data: {
+              codproduto: p.codproduto,
+              codusuario: codusuario || null,
+              tipo_movimentacao: 'AJUSTE',
+              quantidade: Math.abs(next - prev),
+              estoque_anterior: prev,
+              estoque_novo: next,
+              preco_unitario: Number(p.preco_custo),
+              preco_total: Math.abs(next - prev) * Number(p.preco_custo),
+              motivo_descricao: 'Inventário Físico',
+              observacoes: audit.observacoes
+            }
+          });
+          await tx.produtos.update({ where: { codproduto: p.codproduto }, data: { estoque_atual: next }});
+        }
+      });
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(400).json({ error: err.message || 'Erro ao auditar estoque.' });
+    }
+  });
+
+  // ---------------------------------------------
 // ---------------------------------------------
 // PRODUTOS
 // ---------------------------------------------
@@ -219,9 +257,12 @@ app.delete('/api/products/:id', async (req, res) => {
 // MOVIMENTACOES
 // ---------------------------------------------
 app.post('/api/movements', async (req, res) => {
-  const { codproduto, tipo_movimentacao, quantidade, preco_unitario, motivo_descricao, numero_documento, nome_contato, observacoes, area_operacional, codusuario } = req.body;
+  const { codproduto, quantidade, preco_unitario, numero_documento, nome_contato, observacoes, area_operacional, codusuario } = req.body;
+  const tipo_movimentacao = req.body.tipo_movimentacao || (req.body.type === 'IN' ? 'ENTRADA' : req.body.type === 'OUT' ? 'SAIDA' : 'AJUSTE');
+  const motivo_descricao = req.body.motivo_descricao || req.body.reason;
+  
   const qty = Number(quantidade);
-  if (!codproduto || !tipo_movimentacao || isNaN(qty) || qty <= 0) return res.status(400).json({ error: 'Dados invÃ¡lidos.' });
+  if (!codproduto || !tipo_movimentacao || isNaN(qty) || qty <= 0) return res.status(400).json({ error: 'Dados inválidos.' });
 
   try {
     const result = await prisma.$transaction(async (tx) => {
@@ -346,31 +387,34 @@ app.post('/api/work-orders', async (req, res) => {
       
       const newWo = await tx.ordens_servico.create({
         data: {
-          numero_os: woData.numero_os || `OS-${Date.now()}`,
-          tipo_servico: woData.tipo_servico || 'MANUTENCAO',
-          aplicacao: woData.aplicacao || '',
-          tag_equipamento: woData.tag_equipamento,
-          area_operacional: woData.area_operacional,
-          nome_requisitante: woData.nome_requisitante || '',
-          autorizado_por: woData.autorizado_por || '',
-          prioridade: woData.prioridade || 'MEDIA',
+          numero_os: woData.numero_os || woData.osNumber || `OS-${Date.now()}`,
+          tipo_servico: woData.tipo_servico || woData.serviceType || 'MANUTENCAO',
+          aplicacao: woData.aplicacao || woData.serviceDescription || '',
+          tag_equipamento: woData.tag_equipamento || woData.equipmentTag,
+          area_operacional: woData.area_operacional || woData.operationalArea,
+          nome_requisitante: woData.nome_requisitante || woData.requesterName || '',
+          autorizado_por: woData.autorizado_por || woData.authorizedBy || '',
+          prioridade: woData.prioridade || woData.priority || 'MEDIA',
           status: 'ABERTA'
         }
       });
 
       if (items && items.length > 0) {
         for (const item of items) {
-          const product = await tx.produtos.findUnique({ where: { codproduto: item.codproduto }});
+          const codproduto = item.codproduto || item.productId;
+          const product = await tx.produtos.findUnique({ where: { codproduto }});
           if (product) {
-            const requested = Number(item.quantidade_pedida);
+            const requested = Number(item.quantidade_pedida !== undefined ? item.quantidade_pedida : item.requestedQty);
             const price = Number(product.preco_custo);
             await tx.itens_ordem_servico.create({
               data: {
                 codordem: newWo.codordem,
                 codproduto: product.codproduto,
                 quantidade_pedida: requested,
+                quantidade_atendida: requested,
                 preco_unitario: price,
-                preco_total: requested * price
+                preco_total: requested * price,
+                status_atendimento: 'ATENDIDO'
               }
             });
             cost += (requested * price);
@@ -393,15 +437,46 @@ app.post('/api/work-orders', async (req, res) => {
 
 app.post('/api/work-orders/:id/return', async (req, res) => {
   try {
+    const { codproduto, quantity, returnedBy, reason, observacoes } = req.body;
     const wo = await prisma.ordens_servico.findUnique({ where: { codordem: req.params.id }, include: { itens: true } });
-    if (!wo) return res.status(404).json({ error: 'OS nÃ£o encontrada' });
+    if (!wo) return res.status(404).json({ error: 'OS não encontrada' });
 
-    const updated = await prisma.ordens_servico.update({
-      where: { codordem: req.params.id },
-      data: { status: 'CONCLUIDA', data_baixa: new Date() },
-      include: { itens: true }
+    if (!codproduto || !quantity) {
+      // Just finish the OS if no item to return
+      const updated = await prisma.ordens_servico.update({
+        where: { codordem: req.params.id },
+        data: { status: 'CONCLUIDA', data_baixa: new Date() },
+        include: { itens: true }
+      });
+      return res.json(updated);
+    }
+
+    // Process return
+    await prisma.$transaction(async (tx) => {
+      const p = await tx.produtos.findUnique({ where: { codproduto } });
+      if (p) {
+        const prev = Number(p.estoque_atual);
+        const next = prev + Number(quantity);
+        await tx.produtos.update({ where: { codproduto }, data: { estoque_atual: next } });
+
+        await tx.movimentacoes.create({
+          data: {
+            codproduto,
+            tipo_movimentacao: 'ENTRADA',
+            quantidade: Number(quantity),
+            estoque_anterior: prev,
+            estoque_novo: next,
+            preco_unitario: Number(p.preco_custo),
+            preco_total: Number(quantity) * Number(p.preco_custo),
+            motivo_descricao: reason || `Devolução O.S. ${wo.numero_os}`,
+            observacoes: observacoes,
+            nome_contato: returnedBy
+          }
+        });
+      }
     });
-    res.json(updated);
+
+    res.json({ success: true });
   } catch (err) {
     res.status(400).json({ error: 'Erro ao baixar OS' });
   }
