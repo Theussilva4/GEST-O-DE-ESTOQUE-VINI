@@ -150,7 +150,8 @@ export const UsersManagementModal: React.FC<UsersManagementModalProps> = ({
         payload.password = password;
       }
 
-      const url = editingUser ? `/api/users/${editingUser.id}` : '/api/users';
+      const baseUrl = import.meta.env.VITE_API_URL || '';
+      const url = editingUser ? `${baseUrl}/api/users/${editingUser.id}` : `${baseUrl}/api/auth/register`;
       const method = editingUser ? 'PUT' : 'POST';
 
       const res = await fetch(url, {

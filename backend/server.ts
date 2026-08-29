@@ -353,7 +353,7 @@ app.delete('/api/areas/:id', async (req, res) => {
 // ---------------------------------------------
 app.get('/api/users', async (req, res) => {
   const users = await prisma.usuarios.findMany();
-  res.json(users.map(mapUser));
+  res.json({ users: users.map(mapUser) });
 });
 app.put('/api/users/:id', async (req, res) => {
   try {
