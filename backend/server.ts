@@ -404,21 +404,39 @@ app.post('/api/work-orders', async (req, res) => {
           const codproduto = item.codproduto || item.productId;
           const product = await tx.produtos.findUnique({ where: { codproduto }});
           if (product) {
-            const requested = Number(item.quantidade_pedida !== undefined ? item.quantidade_pedida : item.requestedQty);
+            const requested = Number(item.quantity !== undefined ? item.quantity : (item.quantidade_pedida !== undefined ? item.quantidade_pedida : item.requestedQty));
             const price = Number(product.preco_custo);
             await tx.itens_ordem_servico.create({
               data: {
                 codordem: newWo.codordem,
                 codproduto: product.codproduto,
                 quantidade_pedida: requested,
-                quantidade_atendida: requested,
+                quantidade_baixada: requested, // Default to baixada directly since the UI implies auto-discharge or direct consumption
                 preco_unitario: price,
-                preco_total: requested * price,
-                status_atendimento: 'ATENDIDO'
+                preco_total: requested * price
               }
             });
             cost += (requested * price);
             qty += requested;
+
+            // Fazer a baixa no estoque do item
+            const prev = Number(product.estoque_atual);
+            const next = Math.max(0, prev - requested);
+            await tx.produtos.update({ where: { codproduto: product.codproduto }, data: { estoque_atual: next }});
+            
+            // Criar movimentação de saída
+            await tx.movimentacoes.create({
+              data: {
+                codproduto: product.codproduto,
+                tipo_movimentacao: 'SAIDA',
+                quantidade: requested,
+                estoque_anterior: prev,
+                estoque_novo: next,
+                preco_unitario: price,
+                preco_total: requested * price,
+                motivo_descricao: `Consumo O.S. ${newWo.numero_os}`
+              }
+            });
           }
         }
       }
