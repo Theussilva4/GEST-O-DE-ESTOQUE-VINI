@@ -408,8 +408,8 @@ app.post('/api/work-orders', async (req, res) => {
             const price = Number(product.preco_custo);
             await tx.itens_ordem_servico.create({
               data: {
-                codordem: newWo.codordem,
-                codproduto: product.codproduto,
+                ordem_servico: { connect: { codordem: newWo.codordem } },
+                produto: { connect: { codproduto: product.codproduto } },
                 quantidade_pedida: requested,
                 quantidade_baixada: requested, // Default to baixada directly since the UI implies auto-discharge or direct consumption
                 preco_unitario: price,
